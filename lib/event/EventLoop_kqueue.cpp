@@ -19,3 +19,7 @@ void EventLoop::destroy()
 {
     close(mFd);
 }
+
+void EventLoop::wakeup()
+{
+}

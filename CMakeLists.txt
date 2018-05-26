@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 3.8)
-set(CMAKE_CXX_STANDARD 14)
+cmake_minimum_required(VERSION 3.9)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -28,6 +28,22 @@ check_cxx_source_compiles("
         return 0;
     }"
     HAVE_KEVENT64)
+
+check_cxx_source_compiles("
+    #include <type_traits>
+    template<typename T, typename std::enable_if<std::is_invocable_r<void, T>::value, void>::type* = nullptr>
+    void post(T&& func) { }
+    int main(int argc, char** argv) {
+    }"
+    HAVE_INVOCABLE_R)
+
+check_cxx_source_compiles("
+    #include <type_traits>
+    template<typename T, typename std::enable_if<std::__invokable_r<void, T>::value, void>::type* = nullptr>
+    void post(T&& func) { }
+    int main(int argc, char** argv) {
+    }"
+    HAVE_INVOKABLE_R)
 
 add_subdirectory(lib)
 

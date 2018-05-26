@@ -5,7 +5,10 @@ using namespace reckoning::event;
 
 EventLoop::EventLoop()
 {
+    mThread = std::this_thread::get_id();
     init();
+
+    //post([](int, const char*) -> void { }, 10, "123");
 }
 
 EventLoop::~EventLoop()
