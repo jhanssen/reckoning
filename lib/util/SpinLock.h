@@ -2,8 +2,6 @@
 #define SPINLOCK_H
 
 #include <atomic>
-#include <mutex>
-#include <cassert>
 
 namespace reckoning {
 namespace util {
