@@ -39,11 +39,12 @@ public:
 
     Log& operator<<(const EndLine&);
 
-    static void initialize(Level level, Output output, const std::string& filename = std::string());
+    static void initialize(Level level, Output output = Default, const std::string& filename = std::string());
 
 private:
     Level mLevel;
     Output mOutput;
+    int mNum;
 
     static int sFd;
     static Level sLevel;
@@ -51,7 +52,7 @@ private:
 };
 
 inline Log::Log(Level level, Output output)
-    : mLevel(level), mOutput(output)
+    : mLevel(level), mOutput(output), mNum(0)
 {
     if (mOutput == Default)
         mOutput = sOutput;
@@ -67,26 +68,32 @@ inline Log& Log::operator<<(const char* str)
     if (mLevel < sLevel)
         return *this;
 
-    auto maybeWriteToFile = [str](int fd) {
-        if (fd == -1)
-            return;
-        dprintf(fd, "%s", str);
+    auto write = [this](const char* str) {
+        auto maybeWriteToFile = [str](int fd) {
+            if (fd == -1)
+                return;
+            dprintf(fd, "%s", str);
+        };
+
+        switch (mOutput) {
+        case Default:
+            maybeWriteToFile(sFd);
+            // fallthrough
+        case Stdout:
+            dprintf(STDOUT_FILENO, "%s", str);
+            break;
+        case Stderr:
+            dprintf(STDERR_FILENO, "%s", str);
+            break;
+        case File:
+            maybeWriteToFile(sFd);
+            break;
+        }
     };
 
-    switch (mOutput) {
-    case Default:
-        maybeWriteToFile(sFd);
-        // fallthrough
-    case Stdout:
-        dprintf(STDOUT_FILENO, "%s", str);
-        break;
-    case Stderr:
-        dprintf(STDERR_FILENO, "%s", str);
-        break;
-    case File:
-        maybeWriteToFile(sFd);
-        break;
-    }
+    if (mNum++ > 0)
+        write(" ");
+    write(str);
     return *this;
 }
 
