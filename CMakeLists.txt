@@ -4,6 +4,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(CheckCSourceCompiles)
+include(cmake/functions.cmake)
+
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/cmake)
 
 check_c_source_compiles("
     #include <sys/types.h>
@@ -21,5 +24,3 @@ configure_file(
     ${CMAKE_CURRENT_LIST_DIR}/cmake/config.h.in
     ${CMAKE_CURRENT_BINARY_DIR}/cmake/config.h
     )
-
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/cmake)

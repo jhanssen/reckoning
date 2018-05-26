@@ -4,3 +4,5 @@ lib/CMakeFiles/*
 Makefile
 cmake/config.h
 cmake_install.cmake
+*.dylib
+*.so
