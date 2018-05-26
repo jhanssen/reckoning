@@ -31,7 +31,7 @@ public:
 
     template<typename T, typename ...Args>
     typename std::enable_if<std::is_invocable_r<void, T, Args...>::value, void>::type
-    post(T&& func, Args&& ...args);
+    send(T&& func, Args&& ...args);
 
     class Event
     {
@@ -45,7 +45,9 @@ public:
         friend class EventLoop;
     };
 
-    void post(Event&& event);
+    template<typename T, typename std::enable_if<std::is_base_of<Event, T>::value, T>::type* = nullptr>
+    void send(T&& event);
+    void send(std::shared_ptr<Event>&& event);
     void post(std::shared_ptr<Event>&& event);
 
 private:
@@ -68,11 +70,17 @@ class PostEvent : public EventLoop::Event
 {
 public:
     PostEvent(T&& f, Args&& ...a) : func(std::forward<T>(f)), args(std::make_tuple(std::forward<Args>(a)...)) { }
+    PostEvent(PostEvent<T, Args...>&& other) : func(std::move(other.func)), args(std::move(other.args)) { }
     ~PostEvent() override { }
+
+    PostEvent<T, Args...>& operator=(PostEvent<T, Args...>&& other) { func = std::move(other.func); args = std::move(other.args); return *this; }
 
     virtual void execute() override { std::apply(func, args); }
 
 private:
+    PostEvent(const PostEvent&) = delete;
+    PostEvent& operator=(const PostEvent&) = delete;
+
     std::function<void(typename std::decay<Args>::type...)> func;
     std::tuple<typename std::decay<Args>::type...> args;
 };
@@ -80,13 +88,32 @@ private:
 
 template<typename T, typename ...Args>
 inline typename std::enable_if<std::is_invocable_r<void, T, Args...>::value, void>::type
-EventLoop::post(T&& func, Args&& ...args)
+EventLoop::send(T&& func, Args&& ...args)
 {
     if (mThread == std::this_thread::get_id()) {
         func(std::forward<Args>(args)...);
     } else {
         std::shared_ptr<detail::PostEvent<T, Args...> > event = std::make_shared<detail::PostEvent<T, Args...> >(std::forward<T>(func), std::forward<Args>(args)...);
         post(std::move(event));
+    }
+}
+
+template<typename T, typename std::enable_if<std::is_base_of<EventLoop::Event, T>::value, T>::type*>
+inline void EventLoop::send(T&& event)
+{
+    if (mThread == std::this_thread::get_id()) {
+        event.execute();
+    } else {
+        send(std::make_shared<Event>(new T(std::forward<Event>(event))));
+    }
+}
+
+inline void EventLoop::send(std::shared_ptr<Event>&& event)
+{
+    if (mThread == std::this_thread::get_id()) {
+        event->execute();
+    } else {
+        post(std::forward<std::shared_ptr<Event> >(event));
     }
 }
 
