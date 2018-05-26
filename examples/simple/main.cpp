@@ -1,6 +1,7 @@
 #include <event/EventLoop.h>
 #include <event/Signal.h>
 #include <log/Log.h>
+#include <net/TcpSocket.h>
 #include <string>
 
 using namespace reckoning;
@@ -77,5 +78,9 @@ int main(int argc, char** argv)
     loop->send([](Test&& t) {
             Log(Log::Info) << "s" << t.str();
         }, Test("send"));
+
+    net::TcpSocket socket;
+    socket.connect("www.google.com", 80);
+
     return loop->execute(10000ms);
 }

@@ -39,6 +39,6 @@ private:
     SpinLock& mLock;
 };
 
-}} // namespace reckoning::event
+}} // namespace reckoning::util
 
 #endif

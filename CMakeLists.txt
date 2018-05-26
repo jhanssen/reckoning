@@ -61,5 +61,6 @@ configure_file(
     ${CMAKE_CURRENT_BINARY_DIR}/cmake/config.h
     )
 
+add_subdirectory(3rdparty)
 add_subdirectory(lib)
 add_subdirectory(examples)
