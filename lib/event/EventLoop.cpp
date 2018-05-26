@@ -4,6 +4,7 @@ using namespace reckoning;
 using namespace reckoning::event;
 
 EventLoop::EventLoop()
+    : mStatus(0), mStopped(false)
 {
     mThread = std::this_thread::get_id();
     init();

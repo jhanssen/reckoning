@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.9)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 include(CheckCSourceCompiles)
 include(CheckCXXSourceCompiles)
@@ -18,6 +21,14 @@ check_c_source_compiles("
         return 0;
     }"
     HAVE_KQUEUE)
+
+check_c_source_compiles("
+    #include <fcntl.h>
+    int main(int argc, char** argv) {
+        int e = fcntl(0, F_SETFL, O_NONBLOCK);
+        return e;
+    }"
+    HAVE_NONBLOCK)
 
 check_cxx_source_compiles("
     #include <sys/types.h>
@@ -45,9 +56,10 @@ check_cxx_source_compiles("
     }"
     HAVE_INVOKABLE_R)
 
-add_subdirectory(lib)
-
 configure_file(
     ${CMAKE_CURRENT_LIST_DIR}/cmake/config.h.in
     ${CMAKE_CURRENT_BINARY_DIR}/cmake/config.h
     )
+
+add_subdirectory(lib)
+add_subdirectory(examples)

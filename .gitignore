@@ -1,9 +1,11 @@
 CMakeCache.txt
 CMakeFiles/*
 lib/CMakeFiles/*
+examples/CMakeFiles/*
 Makefile
 cmake/config.h
 cmake_install.cmake
+bin/*
 *.dylib
 *.so
 *.ninja
