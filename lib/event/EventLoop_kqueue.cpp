@@ -173,12 +173,13 @@ int EventLoop::execute(std::chrono::milliseconds timeout)
 
             std::lock_guard<std::mutex> locker(mMutex);
             auto it = mTimers.begin();
-            const auto end = mTimers.cend();
+            auto end = mTimers.cend();
             while (it != end) {
                 if ((*it)->mNext <= now) {
                     timers.push_back(*it);
                     if ((*it)->mFlag == Timeout) {
-                        it = timers.erase(it);
+                        it = mTimers.erase(it);
+                        end = mTimers.cend();
                     } else {
                         (*it)->mNext = now + (*it)->mTimeout;
                         ++it;
