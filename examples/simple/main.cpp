@@ -1,20 +1,81 @@
 #include <event/EventLoop.h>
+#include <event/Signal.h>
 #include <log/Log.h>
+#include <string>
 
 using namespace reckoning;
+using namespace reckoning::log;
 using namespace std::chrono_literals;
+
+#define HAVE_CREF
+
+class Test
+{
+public:
+    Test(const char* str)
+        : s(str)
+    {
+        Log(Log::Info) << "  Test(const char*)" << str;
+    }
+    Test(Test&& t)
+        : s(std::move(t.s))
+    {
+        Log(Log::Info) << "  Test(Test&&)" << s;
+    }
+#ifdef HAVE_CREF
+    Test(const Test& t)
+        : s(t.s)
+    {
+        Log(Log::Info) << "  Test(const Test&)" << s;
+    }
+#endif
+
+    std::string str() const { return s; }
+
+private:
+#ifndef HAVE_CREF
+    Test(const Test&) = delete;
+#endif
+    Test& operator=(const Test&) = delete;
+    Test& operator=(Test&&) = delete;
+
+    std::string s;
+};
+
+event::Signal<int, Test&&> sig;
 
 int main(int argc, char** argv)
 {
-    log::Log::initialize(log::Log::Debug);
+    Log::initialize(Log::Debug);
 
     std::shared_ptr<event::EventLoop> loop = std::make_shared<event::EventLoop>();
+    loop->init();
+
+    auto conn = sig.connect([](int i, Test&& t) {
+            Log(Log::Info) << "sig" << i << t.str();
+        });
+    std::thread hey([&conn]() {
+            Test slot1("slot1");
+            sig.emit(10, std::move(slot1));
+
+            conn.disconnect();
+
+            Test slot2("slot2");
+            sig.emit(20, std::move(slot2));
+        });
+
     std::shared_ptr<event::EventLoop::Timer> timer;
     timer = loop->timer(1000ms, event::EventLoop::Interval, [&timer]() {
             static int cnt = 0;
-            log::Log(log::Log::Info) << "yes" << ++cnt;
+            Log(Log::Info) << "yes" << ++cnt;
             if (cnt == 5)
                 timer->stop();
         });
+    loop->timer(1500ms, [](Test&& t) {
+            Log(Log::Info) << "t" << t.str();
+        }, Test("timer"));
+    loop->send([](Test&& t) {
+            Log(Log::Info) << "s" << t.str();
+        }, Test("send"));
     return loop->execute(10000ms);
 }

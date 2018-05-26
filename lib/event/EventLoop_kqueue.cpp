@@ -16,6 +16,8 @@ using namespace reckoning::log;
 
 void EventLoop::init()
 {
+    tLoop = shared_from_this();
+
     mFd = kqueue();
     if (mFd == -1) {
         Log(Log::Error) << "unable to open eventloop kqueue" << errno;
@@ -83,6 +85,8 @@ void EventLoop::cleanup()
 
 int EventLoop::execute(std::chrono::milliseconds timeout)
 {
+    assert(tLoop.lock() != std::shared_ptr<EventLoop>());
+
     if (timeout != std::chrono::milliseconds{-1}) {
         timer(timeout, [this]() { exit(); });
     }

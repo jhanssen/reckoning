@@ -2,6 +2,7 @@
 #define LOG_H
 
 #include <string>
+#include <mutex>
 #include <cstdio>
 #include <unistd.h>
 
@@ -49,11 +50,13 @@ private:
     static int sFd;
     static Level sLevel;
     static Output sOutput;
+    static std::mutex sMutex;
 };
 
 inline Log::Log(Level level, Output output)
     : mLevel(level), mOutput(output), mNum(0)
 {
+    sMutex.lock();
     if (mOutput == Default)
         mOutput = sOutput;
 }
@@ -61,6 +64,7 @@ inline Log::Log(Level level, Output output)
 inline Log::~Log()
 {
     operator<<("\n");
+    sMutex.unlock();
 }
 
 inline Log& Log::operator<<(const char* str)

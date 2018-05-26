@@ -30,6 +30,10 @@ public:
     EventLoop();
     ~EventLoop();
 
+    void init();
+
+    bool isLoopThread() const;
+
     // Events
     class Event
     {
@@ -83,12 +87,12 @@ public:
     };
 
     template<typename T, typename ...Args>
-    std::shared_ptr<Timer> timer(std::chrono::milliseconds timeout, T&& func, Args&& ...args,
-                                 typename std::enable_if<std::is_invocable_r<void, T, Args...>::value, void>::type* = nullptr);
+    typename std::enable_if<std::is_invocable_r<void, T, Args...>::value, std::shared_ptr<Timer> >::type
+    timer(std::chrono::milliseconds timeout, T&& func, Args&& ...args);
 
     template<typename T, typename ...Args>
-    std::shared_ptr<Timer> timer(std::chrono::milliseconds timeout, TimerFlag flag, T&& func, Args&& ...args,
-                                 typename std::enable_if<std::is_invocable_r<void, T, Args...>::value, void>::type* = nullptr);
+    typename std::enable_if<std::is_invocable_r<void, T, Args...>::value, std::shared_ptr<Timer> >::type
+    timer(std::chrono::milliseconds timeout, TimerFlag flag, T&& func, Args&& ...args);
 
     template<typename T, typename std::enable_if<std::is_base_of<Timer, T>::value, T>::type* = nullptr>
     std::shared_ptr<Timer> timer(T&& timer);
@@ -98,8 +102,9 @@ public:
     int execute(std::chrono::milliseconds timeout = std::chrono::milliseconds{-1});
     void exit(int status = 0);
 
+    static std::shared_ptr<EventLoop> loop();
+
 private:
-    void init();
     void destroy();
     void wakeup();
     void cleanup();
@@ -116,8 +121,15 @@ private:
     int mStatus;
     bool mStopped;
 
+    thread_local static std::weak_ptr<EventLoop> tLoop;
+
     friend class Timer;
 };
+
+inline bool EventLoop::isLoopThread() const
+{
+    return mThread == std::this_thread::get_id();
+}
 
 inline void EventLoop::Timer::stop()
 {
@@ -221,8 +233,8 @@ inline void EventLoop::post(std::unique_ptr<Event>&& event)
 }
 
 template<typename T, typename ...Args>
-std::shared_ptr<EventLoop::Timer> EventLoop::timer(std::chrono::milliseconds timeout, T&& func, Args&& ...args,
-                                                   typename std::enable_if<std::is_invocable_r<void, T, Args...>::value, void>::type*)
+typename std::enable_if<std::is_invocable_r<void, T, Args...>::value, std::shared_ptr<EventLoop::Timer> >::type
+EventLoop::timer(std::chrono::milliseconds timeout, T&& func, Args&& ...args)
 {
     auto st = std::make_shared<detail::ArgsTimer<T, Args...> >(timeout, Timeout, std::forward<T>(func), std::forward<Args>(args)...);
     st->mLoop = shared_from_this();
@@ -231,8 +243,8 @@ std::shared_ptr<EventLoop::Timer> EventLoop::timer(std::chrono::milliseconds tim
 }
 
 template<typename T, typename ...Args>
-std::shared_ptr<EventLoop::Timer> EventLoop::timer(std::chrono::milliseconds timeout, TimerFlag flag, T&& func, Args&& ...args,
-                                                   typename std::enable_if<std::is_invocable_r<void, T, Args...>::value, void>::type*)
+typename std::enable_if<std::is_invocable_r<void, T, Args...>::value, std::shared_ptr<EventLoop::Timer> >::type
+EventLoop::timer(std::chrono::milliseconds timeout, TimerFlag flag, T&& func, Args&& ...args)
 {
     auto st = std::make_shared<detail::ArgsTimer<T, Args...> >(timeout, flag, std::forward<T>(func), std::forward<Args>(args)...);
     st->mLoop = shared_from_this();
@@ -264,6 +276,11 @@ inline void EventLoop::timer(const std::shared_ptr<Timer>& t)
     mTimers.insert(it, t);
 
     wakeup();
+}
+
+inline std::shared_ptr<EventLoop> EventLoop::loop()
+{
+    return tLoop.lock();
 }
 
 }} // namespace reckoning::event

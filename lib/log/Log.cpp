@@ -8,6 +8,7 @@ using namespace reckoning::log;
 int Log::sFd = -1;
 Log::Level Log::sLevel = Log::Error;
 Log::Output Log::sOutput = Log::Default;
+std::mutex Log::sMutex;
 
 void Log::initialize(Level level, Output output, const std::string& filename)
 {
