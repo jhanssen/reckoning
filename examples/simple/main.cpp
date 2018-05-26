@@ -2,7 +2,7 @@
 #include <log/Log.h>
 
 using namespace reckoning;
-using ms = std::chrono::milliseconds;
+using namespace std::chrono_literals;
 
 int main(int argc, char** argv)
 {
@@ -10,11 +10,11 @@ int main(int argc, char** argv)
 
     std::shared_ptr<event::EventLoop> loop = std::make_shared<event::EventLoop>();
     std::shared_ptr<event::EventLoop::Timer> timer;
-    timer = loop->timer(ms{1000}, event::EventLoop::Interval, [&timer]() {
+    timer = loop->timer(1000ms, event::EventLoop::Interval, [&timer]() {
             static int cnt = 0;
             log::Log(log::Log::Info) << "yes" << ++cnt;
             if (cnt == 5)
                 timer->stop();
         });
-    return loop->execute(ms{10000});
+    return loop->execute(10000ms);
 }
