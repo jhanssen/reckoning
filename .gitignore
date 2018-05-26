@@ -1,0 +1,6 @@
+CMakeCache.txt
+CMakeFiles/*
+lib/CMakeFiles/*
+Makefile
+cmake/config.h
+cmake_install.cmake
