@@ -4,6 +4,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(CheckCSourceCompiles)
+include(CheckCXXSourceCompiles)
 include(cmake/functions.cmake)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/cmake)
@@ -17,6 +18,16 @@ check_c_source_compiles("
         return 0;
     }"
     HAVE_KQUEUE)
+
+check_cxx_source_compiles("
+    #include <sys/types.h>
+    #include <sys/event.h>
+    #include <sys/time.h>
+    int main(int argc, char** argv) {
+        int ret = kevent64(0, nullptr, 0, nullptr, 0, 0, nullptr);
+        return 0;
+    }"
+    HAVE_KEVENT64)
 
 add_subdirectory(lib)
 

@@ -6,3 +6,4 @@ cmake/config.h
 cmake_install.cmake
 *.dylib
 *.so
+*.ninja
