@@ -310,7 +310,7 @@ inline EventLoop::FD EventLoop::fd(int fd, uint8_t flags, T&& callback)
     std::lock_guard<std::mutex> locker(mMutex);
     mPendingFds.push_back(std::make_pair(fd, std::forward<T>(callback)));
     if (flags & FdWrite) {
-        mUpdateFds.push_back(std::make_pair(fd, FdWrite | (flags & FdRead) ? FdRead : 0));
+        mUpdateFds.push_back(std::make_pair(fd, FdWrite | ((flags & FdRead) ? FdRead : 0)));
     }
     wakeup();
 

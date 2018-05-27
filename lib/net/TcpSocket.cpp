@@ -32,7 +32,7 @@ void TcpSocket::socketCallback(int fd, uint8_t flags)
             return;
         }
         if (flags & event::EventLoop::FdRead) {
-            mStateChanged.emit(ReadyRead);
+            mReadyRead.emit(shared_from_this());
         }
         if (flags & event::EventLoop::FdWrite) {
             // remove select for write
@@ -48,7 +48,7 @@ void TcpSocket::socketCallback(int fd, uint8_t flags)
                     if (mFd6 == -1) {
                         // we're done
                         mState = Error;
-                        mStateChanged.emit(Error);
+                        mStateChanged.emit(shared_from_this(), Error);
                     }
                     eintrwrap(e, ::close(mFd4));
                     mFd4 = -1;
@@ -57,7 +57,7 @@ void TcpSocket::socketCallback(int fd, uint8_t flags)
                 } else {
                     // we're good, if IPv6 is still connected, close it
                     mState = Connected;
-                    mStateChanged.emit(Connected);
+                    mStateChanged.emit(shared_from_this(), Connected);
                     if (mFd6 != -1) {
                         eintrwrap(e, ::close(mFd6));
                         mFd6 = -1;
@@ -79,7 +79,7 @@ void TcpSocket::socketCallback(int fd, uint8_t flags)
             return;
         }
         if (flags & event::EventLoop::FdRead) {
-            mStateChanged.emit(ReadyRead);
+            mReadyRead.emit(shared_from_this());
         }
         if (flags & event::EventLoop::FdWrite) {
             // remove select for write
@@ -95,7 +95,7 @@ void TcpSocket::socketCallback(int fd, uint8_t flags)
                     if (mFd4 == -1) {
                         // we're done
                         mState = Error;
-                        mStateChanged.emit(Error);
+                        mStateChanged.emit(shared_from_this(), Error);
                     }
                     eintrwrap(e, ::close(mFd6));
                     mFd6 = -1;
@@ -104,7 +104,7 @@ void TcpSocket::socketCallback(int fd, uint8_t flags)
                 } else {
                     // we're good, if IPv4 is still connected, close it
                     mState = Connected;
-                    mStateChanged.emit(Connected);
+                    mStateChanged.emit(shared_from_this(), Connected);
                     if (mFd4 != -1) {
                         eintrwrap(e, ::close(mFd4));
                         mFd4 = -1;
@@ -174,7 +174,7 @@ void TcpSocket::connect(const Resolver::Response::IPv4& ip, uint16_t port)
     if (!e) {
         // we're connected
         mState = Connected;
-        mStateChanged.emit(Connected);
+        mStateChanged.emit(shared_from_this(), Connected);
         // if we have a pending IPv6 connect, close it
         if (mFd6 != -1) {
             eintrwrap(e, ::close(mFd6));
@@ -185,12 +185,13 @@ void TcpSocket::connect(const Resolver::Response::IPv4& ip, uint16_t port)
     } else if (errno == EINPROGRESS) {
         // we're pending connect
         mState = Connecting;
-        mStateChanged.emit(Connecting);
+        mStateChanged.emit(shared_from_this(), Connecting);
+        // printf("connecting %d\n", mFd4);
     } else {
         // bad stuff
         if (mFd6 == -1) {
             mState = Error;
-            mStateChanged.emit(Error);
+            mStateChanged.emit(shared_from_this(), Error);
         }
         eintrwrap(e, ::close(mFd4));
         mFd4 = -1;
@@ -223,7 +224,7 @@ void TcpSocket::connect(const Resolver::Response::IPv6& ip, uint16_t port)
     if (!e) {
         // we're connected
         mState = Connected;
-        mStateChanged.emit(Connected);
+        mStateChanged.emit(shared_from_this(), Connected);
         // if we have a pending IPv4 connect, close it
         if (mFd4 != -1) {
             eintrwrap(e, ::close(mFd4));
@@ -234,12 +235,13 @@ void TcpSocket::connect(const Resolver::Response::IPv6& ip, uint16_t port)
     } else if (errno == EINPROGRESS) {
         // we're pending connect
         mState = Connecting;
-        mStateChanged.emit(Connecting);
+        mStateChanged.emit(shared_from_this(), Connecting);
+        // printf("connecting %d\n", mFd6);
     } else {
         // bad stuff
         if (mFd4 == -1) {
             mState = Error;
-            mStateChanged.emit(Error);
+            mStateChanged.emit(shared_from_this(), Error);
         }
         eintrwrap(e, ::close(mFd6));
         mFd6 = -1;
@@ -281,7 +283,7 @@ void TcpSocket::processWrite(int fd)
                 close();
 
                 mState = Error;
-                mStateChanged.emit(Error);
+                mStateChanged.emit(shared_from_this(), Error);
             }
             return;
         } else {
@@ -303,7 +305,7 @@ std::shared_ptr<buffer::Buffer<TcpSocket::BufferSize> > TcpSocket::read(size_t b
 
     auto processRead = [bytes](int fd, std::shared_ptr<buffer::Buffer<BufferSize> >& buf) {
         int e;
-        eintrwrap(e, ::read(fd, buf->data(), std::max<size_t>(bytes, BufferSize)));
+        eintrwrap(e, ::read(fd, buf->data(), std::min<size_t>(bytes, BufferSize)));
         if (e > 0) {
             buf->setSize(e);
             return e;
@@ -335,7 +337,7 @@ std::shared_ptr<buffer::Buffer<TcpSocket::BufferSize> > TcpSocket::read(size_t b
         close();
 
         mState = Closed;
-        mStateChanged.emit(Closed);
+        mStateChanged.emit(shared_from_this(), Closed);
 
         return std::shared_ptr<buffer::Buffer<BufferSize> >();
     } else if (errno == -EAGAIN) {
@@ -345,8 +347,26 @@ std::shared_ptr<buffer::Buffer<TcpSocket::BufferSize> > TcpSocket::read(size_t b
     close();
 
     mState = Error;
-    mStateChanged.emit(Error);
+    mStateChanged.emit(shared_from_this(), Error);
 
     Log(Log::Error) << "failed to read" << -e;
     return std::shared_ptr<buffer::Buffer<BufferSize> >();
+}
+
+void TcpSocket::write(const uint8_t* data, size_t bytes)
+{
+    size_t rem = bytes;
+    size_t where = 0;
+    while (rem > 0) {
+        std::shared_ptr<buffer::Buffer<BufferSize> > buf = buffer::Pool<20, BufferSize>::pool().get();
+        const size_t cur = std::min<size_t>(rem, BufferSize);
+
+        memcpy(buf->data(), data + where, cur);
+        buf->setSize(cur);
+
+        write(std::move(buf));
+
+        rem -= cur;
+        where += cur;
+    }
 }

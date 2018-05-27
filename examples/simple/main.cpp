@@ -79,8 +79,20 @@ int main(int argc, char** argv)
             Log(Log::Info) << "s" << t.str();
         }, Test("send"));
 
-    net::TcpSocket socket;
-    socket.connect("www.google.com", 80);
+    std::shared_ptr<net::TcpSocket> socket = std::make_shared<net::TcpSocket>();
+    socket->onStateChanged().connect([](std::shared_ptr<net::TcpSocket>&& socket, net::TcpSocket::State state) {
+            Log(Log::Info) << "socket state change" << static_cast<int>(state);
+        });
+    socket->onReadyRead().connect([](std::shared_ptr<net::TcpSocket>&& socket) {
+            Log(Log::Info) << "ready to read";
+            auto buf = socket->read();
+            if (buf)
+                printf("read %zu bytes\n", buf->size());
+        });
+    socket->connect("www.google.com", 80);
+    socket->write("GET / HTTP/1.0\r\n\r\n", 18);
+
+    hey.join();
 
     return loop->execute(10000ms);
 }

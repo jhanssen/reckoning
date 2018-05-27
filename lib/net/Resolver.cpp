@@ -12,6 +12,7 @@ using namespace reckoning::log;
 using namespace std::chrono_literals;
 
 Resolver::Resolver()
+    : mStopped(false)
 {
     mThread = std::thread([this]() {
             auto callback = [](void *arg, int status, int timeouts, struct hostent *host) {
@@ -61,8 +62,12 @@ Resolver::Resolver()
                 std::vector<std::shared_ptr<Response> > requests;
                 {
                     std::unique_lock<std::mutex> locker(mMutex);
+                    if (mStopped)
+                        return;
                     while (mRequests.empty()) {
-                        mCondition.wait_until(locker, std::chrono::steady_clock::now() + 1000ms);
+                        mCondition.wait_for(locker, 1000ms);
+                        if (mStopped)
+                            return;
                     }
                     requests = std::move(mRequests);
                 }
@@ -101,6 +106,15 @@ Resolver::Resolver()
                 }
             }
         });
+}
+
+void Resolver::shutdown()
+{
+    {
+        std::unique_lock<std::mutex> locker(mMutex);
+        mStopped = true;
+    }
+    mThread.join();
 }
 
 std::string Resolver::Response::IPv4::name() const

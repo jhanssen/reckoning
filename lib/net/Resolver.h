@@ -64,6 +64,7 @@ public:
     };
 
     void startRequest(const std::shared_ptr<Response>& request);
+    void shutdown();
 
     static Resolver& resolver();
 
@@ -75,6 +76,7 @@ private:
     std::mutex mMutex;
     std::condition_variable mCondition;
     std::vector<std::shared_ptr<Response> > mRequests;
+    bool mStopped;
 };
 
 inline Resolver::Response::Response(const std::string& hostname)

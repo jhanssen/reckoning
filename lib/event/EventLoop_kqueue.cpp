@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <log/Log.h>
 #include <util/Socket.h>
+#include <net/Resolver.h>
 
 using namespace reckoning;
 using namespace reckoning::event;
@@ -124,12 +125,22 @@ int EventLoop::execute(std::chrono::milliseconds timeout)
             std::lock_guard<std::mutex> locker(mMutex);
             // are we stopped?
             if (mStopped) {
+                // shutdown threads etc
+                net::Resolver::resolver().shutdown();
+
                 return mStatus;
             }
 
             events = std::move(mEvents);
 
-            // while we have the mutex locked, process pending fds
+        }
+        for (const auto& e : events) {
+            e->execute();
+        }
+
+        // process new fds
+        {
+            std::lock_guard<std::mutex> locker(mMutex);
             if (!mPendingFds.empty()) {
                 fds.clear();
                 fds.reserve(mPendingFds.size());
@@ -140,14 +151,12 @@ int EventLoop::execute(std::chrono::milliseconds timeout)
                 mPendingFds.clear();
             }
         }
-        for (const auto& e : events) {
-            e->execute();
-        }
         // add new fds
         if (!fds.empty()) {
             struct kevent ev;
             memset(&ev, 0, sizeof(struct kevent));
             for (auto fd : fds) {
+                // printf("adding fd %d\n", fd);
                 ev.ident = fd;
                 ev.flags = EV_ADD|EV_ENABLE;
                 ev.filter = EVFILT_READ;
@@ -175,20 +184,25 @@ int EventLoop::execute(std::chrono::milliseconds timeout)
                 memset(&ev, 0, sizeof(struct kevent));
                 for (auto update : mUpdateFds) {
                     ev.ident = update.first;
+                    // printf("updating fd %ld with flag %d\n", ev.ident, update.second);
                     if (update.second & FdRead) {
+                        // printf("add read\n");
                         ev.flags = EV_ADD|EV_ENABLE;
                         ev.filter = EVFILT_READ;
                         eintrwrap(e, kevent(mFd, &ev, 1, 0, 0, 0));
                     } else {
+                        // printf("remove read\n");
                         ev.flags = EV_DELETE|EV_DISABLE;
                         ev.filter = EVFILT_READ;
                         eintrwrap(e, kevent(mFd, &ev, 1, 0, 0, 0));
                     }
                     if (update.second & FdWrite) {
+                        // printf("add write\n");
                         ev.flags = EV_ADD|EV_ENABLE;
                         ev.filter = EVFILT_WRITE;
                         eintrwrap(e, kevent(mFd, &ev, 1, 0, 0, 0));
                     } else {
+                        // printf("remove write\n");
                         ev.flags = EV_DELETE|EV_DISABLE;
                         ev.filter = EVFILT_WRITE;
                         eintrwrap(e, kevent(mFd, &ev, 1, 0, 0, 0));
@@ -202,6 +216,7 @@ int EventLoop::execute(std::chrono::milliseconds timeout)
             struct kevent ev;
             memset(&ev, 0, sizeof(struct kevent));
             for (auto fd : fds) {
+                // printf("removing fd %d\n", fd);
                 ev.ident = fd;
                 ev.flags = EV_DELETE|EV_DISABLE;
                 eintrwrap(e, kevent(mFd, &ev, 1, 0, 0, 0));
@@ -217,10 +232,15 @@ int EventLoop::execute(std::chrono::milliseconds timeout)
             return -1;
         }
 
+        // printf("got %d events\n", e);
+
         for (int i = 0; i < e; ++i) {
             const int16_t filter = kevents[i].filter;
             const uint16_t flags = kevents[i].flags;
             const int fd = kevents[i].ident;
+
+            // printf("event on fd %d\n", fd);
+
             if (flags & EV_ERROR) {
                 // badness, we want this thing out
                 struct kevent& kev = kevents[i];
