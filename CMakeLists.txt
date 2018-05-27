@@ -30,6 +30,15 @@ check_c_source_compiles("
     }"
     HAVE_NONBLOCK)
 
+check_c_source_compiles("
+    #include <sys/socket.h>
+    int main(int argc, char** argv) {
+        int flags = 1;
+        setsockopt(0, SOL_SOCKET, SO_NOSIGPIPE, (void *)&flags, sizeof(int));
+        return flags;
+    }"
+    HAVE_NOSIGPIPE)
+
 check_cxx_source_compiles("
     #include <sys/types.h>
     #include <sys/event.h>

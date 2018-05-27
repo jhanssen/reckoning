@@ -1,12 +1,24 @@
 #ifndef SIGNAL_H
 #define SIGNAL_H
 
-#include "EventLoop.h"
+#include <config.h>
 #include <util/SpinLock.h>
 #include <cassert>
+#include <memory>
+#include <functional>
+
+#if !defined(HAVE_INVOCABLE_R) && defined(HAVE_INVOKABLE_R)
+namespace std {
+template <class _Ret, class _Fp, class ..._Args>
+using is_invocable_r = __invokable_r<_Ret, _Fp, _Args...>;
+}
+#endif
 
 namespace reckoning {
 namespace event {
+
+class EventLoop;
+std::shared_ptr<EventLoop> eventLoop();
 
 template<typename ...Args>
 class Signal;
@@ -161,7 +173,7 @@ Signal<Args...>::connect(T&& func)
     util::SpinLocker locker(mLock);
 
     auto base = std::make_shared<detail::ConnectionBase<Args...> >();
-    base->mLoop = EventLoop::loop();
+    base->mLoop = eventLoop();
     base->mFunction = std::forward<T>(func);
     mConnections.push_back(base);
     return Connection(base);

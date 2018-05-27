@@ -7,18 +7,12 @@
 #include <memory>
 #include <vector>
 #include <chrono>
+#include <event/Signal.h>
 
 #ifdef HAVE_KQUEUE
 #  include <sys/types.h>
 #  include <sys/event.h>
 #  include <sys/time.h>
-#endif
-
-#if !defined(HAVE_INVOCABLE_R) && defined(HAVE_INVOKABLE_R)
-namespace std {
-template <class _Ret, class _Fp, class ..._Args>
-using is_invocable_r = __invokable_r<_Ret, _Fp, _Args...>;
-}
 #endif
 
 namespace reckoning {
@@ -99,6 +93,31 @@ public:
 
     void timer(const std::shared_ptr<Timer>& timer);
 
+    // file descriptor
+    class FD
+    {
+    public:
+        FD();
+        FD(FD&& other);
+        FD& operator=(FD&& other);
+
+        void remove();
+
+    private:
+        FD(const FD&) = delete;
+        FD& operator=(const FD&) = delete;
+
+        int mFd;
+        std::weak_ptr<EventLoop> mLoop;
+
+        friend class EventLoop;
+    };
+
+    enum FdFlag { FdError = 0x1, FdRead = 0x2, FdWrite = 0x4 };
+    template<typename T, typename std::enable_if<std::is_invocable_r<void, T, int, uint8_t>::value, T>::type* = nullptr>
+    FD fd(int fd, uint8_t flags, T&& callback);
+    void fd(int fd, uint8_t flags);
+
     int execute(std::chrono::milliseconds timeout = std::chrono::milliseconds{-1});
     void exit(int status = 0);
 
@@ -118,6 +137,9 @@ private:
     std::mutex mMutex;
     std::vector<std::unique_ptr<Event> > mEvents;
     std::vector<std::shared_ptr<Timer> > mTimers;
+    std::vector<std::pair<int, std::function<void(int, uint8_t)> > > mFds, mPendingFds;
+    std::vector<std::pair<int, uint8_t> > mUpdateFds;
+    std::vector<int> mRemovedFds;
     int mStatus;
     bool mStopped;
 
@@ -276,6 +298,85 @@ inline void EventLoop::timer(const std::shared_ptr<Timer>& t)
     mTimers.insert(it, t);
 
     wakeup();
+}
+
+template<typename T, typename std::enable_if<std::is_invocable_r<void, T, int, uint8_t>::value, T>::type*>
+inline EventLoop::FD EventLoop::fd(int fd, uint8_t flags, T&& callback)
+{
+    FD r;
+    r.mFd = fd;
+    r.mLoop = shared_from_this();
+
+    std::lock_guard<std::mutex> locker(mMutex);
+    mPendingFds.push_back(std::make_pair(fd, std::forward<T>(callback)));
+    if (flags & FdWrite) {
+        mUpdateFds.push_back(std::make_pair(fd, FdWrite | (flags & FdRead) ? FdRead : 0));
+    }
+    wakeup();
+
+    return r;
+}
+
+inline void EventLoop::fd(int fd, uint8_t flags)
+{
+    std::lock_guard<std::mutex> locker(mMutex);
+    mUpdateFds.push_back(std::make_pair(fd, flags));
+    wakeup();
+}
+
+inline EventLoop::FD::FD()
+    : mFd(-1)
+{
+}
+
+inline EventLoop::FD::FD(FD&& other)
+    : mFd(other.mFd), mLoop(std::move(other.mLoop))
+{
+}
+
+inline EventLoop::FD& EventLoop::FD::operator=(FD&& other)
+{
+    mFd = other.mFd;
+    mLoop = std::move(other.mLoop);
+    return *this;
+}
+
+inline void EventLoop::FD::remove()
+{
+    auto loop = mLoop.lock();
+    if (!loop)
+        return;
+    std::lock_guard<std::mutex> locker(loop->mMutex);
+    auto it = loop->mFds.begin();
+    auto end = loop->mFds.cend();
+    while (it != end) {
+        if (it->first == mFd) {
+            loop->mFds.erase(it);
+            break;
+        }
+        ++it;
+    }
+    it = loop->mPendingFds.begin();
+    end = loop->mPendingFds.cend();
+    while (it != end) {
+        if (it->first == mFd) {
+            loop->mPendingFds.erase(it);
+            break;
+        }
+        ++it;
+    }
+    // remove from mUpdateFds if it's there
+    auto uit = loop->mPendingFds.begin();
+    const auto uend = loop->mPendingFds.cend();
+    while (uit != uend) {
+        if (uit->first == mFd) {
+            loop->mPendingFds.erase(uit);
+            break;
+        }
+        ++uit;
+    }
+    loop->mRemovedFds.push_back(mFd);
+    loop->wakeup();
 }
 
 inline std::shared_ptr<EventLoop> EventLoop::loop()

@@ -6,5 +6,6 @@
 #cmakedefine HAVE_INVOCABLE_R
 #cmakedefine HAVE_INVOKABLE_R
 #cmakedefine HAVE_NONBLOCK
+#cmakedefine HAVE_NOSIGPIPE
 
 #endif

@@ -16,3 +16,11 @@ EventLoop::~EventLoop()
 {
     destroy();
 }
+
+namespace reckoning {
+namespace event {
+std::shared_ptr<EventLoop> eventLoop()
+{
+    return EventLoop::loop();
+}
+}} // namespace reckoning::event

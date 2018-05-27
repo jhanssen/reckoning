@@ -54,6 +54,7 @@ inline bool Buffer<Size>::isInUse() const
 template<size_t Size>
 inline void Buffer<Size>::setSize(size_t sz)
 {
+    assert(sz <= Size);
     mSize = sz;
 }
 

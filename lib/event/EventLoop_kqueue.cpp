@@ -4,11 +4,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <log/Log.h>
-
-#define eintrwrap(VAR, BLOCK)                   \
-    do {                                        \
-        VAR = BLOCK;                            \
-    } while (VAR == -1 && errno == EINTR)
+#include <util/Socket.h>
 
 using namespace reckoning;
 using namespace reckoning::event;
@@ -32,14 +28,7 @@ void EventLoop::init()
         return;
     }
 #ifdef HAVE_NONBLOCK
-    e = fcntl(mWakeup[0], F_GETFL, 0);
-    if (e == -1) {
-        Log(Log::Error) << "unable to get flags for wakeup pipe" << errno;
-        cleanup();
-        return;
-    }
-    e = fcntl(mWakeup[0], F_SETFL, e | O_NONBLOCK);
-    if (e == -1) {
+    if (!util::socket::setFlag(mWakeup[0], O_NONBLOCK)) {
         Log(Log::Error) << "unable to set nonblock for wakeup pipe" << errno;
         cleanup();
         return;
@@ -98,11 +87,33 @@ int EventLoop::execute(std::chrono::milliseconds timeout)
         std::sort(timers.begin(), timers.end(), compare);
     };
 
+    auto processFd = [this](int fd, uint8_t flags)
+    {
+        std::unique_lock<std::mutex> locker(mMutex);
+        auto it = mFds.begin();
+        const auto end = mFds.end();
+        while (it != end) {
+            if (it->first == fd) {
+                if (flags & FdError) {
+                    // let it go
+                    mFds.erase(it);
+                }
+
+                auto func = it->second;
+                locker.unlock();
+                func(fd, flags);
+                return;
+            }
+            ++it;
+        }
+    };
+
     timespec ts;
     timespec* tsptr = nullptr;
 
     std::vector<std::unique_ptr<Event> > events;
     std::vector<std::shared_ptr<Timer> > timers;
+    std::vector<int> fds;
 
     enum { MaxEvents = 64 };
     struct kevent kevents[MaxEvents];
@@ -117,9 +128,32 @@ int EventLoop::execute(std::chrono::milliseconds timeout)
             }
 
             events = std::move(mEvents);
+
+            // while we have the mutex locked, process pending fds
+            if (!mPendingFds.empty()) {
+                fds.clear();
+                fds.reserve(mPendingFds.size());
+                for (const auto &fd : mPendingFds) {
+                    fds.push_back(fd.first);
+                }
+                mFds.insert(mFds.end(), std::make_move_iterator(mPendingFds.begin()), std::make_move_iterator(mPendingFds.end()));
+                mPendingFds.clear();
+            }
         }
         for (const auto& e : events) {
             e->execute();
+        }
+        // add new fds
+        if (!fds.empty()) {
+            struct kevent ev;
+            memset(&ev, 0, sizeof(struct kevent));
+            for (auto fd : fds) {
+                ev.ident = fd;
+                ev.flags = EV_ADD|EV_ENABLE;
+                ev.filter = EVFILT_READ;
+                eintrwrap(e, kevent(mFd, &ev, 1, 0, 0, 0));
+            }
+            fds.clear();
         }
         // when is our first timer?
         {
@@ -131,6 +165,48 @@ int EventLoop::execute(std::chrono::milliseconds timeout)
             } else {
                 tsptr = nullptr;
             }
+
+            // also, while we have the mutex, process removed fds
+            fds = std::move(mRemovedFds);
+
+            // and update sockets, hopefully we won't have too many of these
+            if (!mUpdateFds.empty()) {
+                struct kevent ev;
+                memset(&ev, 0, sizeof(struct kevent));
+                for (auto update : mUpdateFds) {
+                    ev.ident = update.first;
+                    if (update.second & FdRead) {
+                        ev.flags = EV_ADD|EV_ENABLE;
+                        ev.filter = EVFILT_READ;
+                        eintrwrap(e, kevent(mFd, &ev, 1, 0, 0, 0));
+                    } else {
+                        ev.flags = EV_DELETE|EV_DISABLE;
+                        ev.filter = EVFILT_READ;
+                        eintrwrap(e, kevent(mFd, &ev, 1, 0, 0, 0));
+                    }
+                    if (update.second & FdWrite) {
+                        ev.flags = EV_ADD|EV_ENABLE;
+                        ev.filter = EVFILT_WRITE;
+                        eintrwrap(e, kevent(mFd, &ev, 1, 0, 0, 0));
+                    } else {
+                        ev.flags = EV_DELETE|EV_DISABLE;
+                        ev.filter = EVFILT_WRITE;
+                        eintrwrap(e, kevent(mFd, &ev, 1, 0, 0, 0));
+                    }
+                }
+                mUpdateFds.clear();
+            }
+        }
+        // remove fds
+        if (!fds.empty()) {
+            struct kevent ev;
+            memset(&ev, 0, sizeof(struct kevent));
+            for (auto fd : fds) {
+                ev.ident = fd;
+                ev.flags = EV_DELETE|EV_DISABLE;
+                eintrwrap(e, kevent(mFd, &ev, 1, 0, 0, 0));
+            }
+            fds.clear();
         }
 
         eintrwrap(e, kevent(mFd, 0, 0, kevents, MaxEvents, tsptr));
@@ -151,6 +227,8 @@ int EventLoop::execute(std::chrono::milliseconds timeout)
                 Log(Log::Warn) << "error on socket" << fd << kev.data;
                 kev.flags = EV_DELETE|EV_DISABLE;
                 kevent(mFd, &kev, 1, 0, 0, 0);
+
+                processFd(fd, FdError);
             } else {
                 switch (filter) {
                 case EVFILT_READ:
@@ -162,10 +240,12 @@ int EventLoop::execute(std::chrono::milliseconds timeout)
                             e = read(fd, &c, 1);
                         } while (e == 1);
                     } else {
+                        processFd(fd, FdRead);
                     }
                     break;
                 case EVFILT_WRITE:
                     // write event;
+                    processFd(fd, FdWrite);
                     break;
                 }
             }
