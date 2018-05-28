@@ -1,10 +1,10 @@
 #ifndef HTTPCLIENT_H
 #define HTTPCLIENT_H
 
-#include <memory>
 #include <net/TcpSocket.h>
 #include <buffer/Buffer.h>
 #include <util/Creatable.h>
+#include <memory>
 #include <vector>
 #include <string>
 
@@ -16,7 +16,14 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>, public util:
 public:
     ~HttpClient();
 
-    typedef std::vector<std::pair<std::string, std::string> > Headers;
+    struct Headers : public std::vector<std::pair<std::string, std::string> >
+    {
+        template<typename T, typename U>
+        void add(T key, U value);
+
+        template<typename T>
+        std::string find(T key) const;
+    };
 
     struct Response
     {
@@ -33,6 +40,11 @@ public:
     void post(HttpVersion version, const std::string& query, const Headers& headers, std::shared_ptr<buffer::Buffer>&& body);
     void post(HttpVersion version, const std::string& query, const Headers& headers, const std::shared_ptr<buffer::Buffer>& body);
     void post(HttpVersion version, const std::string& query, const Headers& headers, const std::string& body);
+
+    void write(std::shared_ptr<buffer::Buffer>&& buffer);
+    void write(const std::shared_ptr<buffer::Buffer>& buffer);
+    void write(const uint8_t* data, size_t bytes);
+    void write(const char* data, size_t bytes);
 
     event::Signal<Response&&>& onResponse();
     event::Signal<std::shared_ptr<buffer::Buffer>&&>& onBodyData();
@@ -100,14 +112,59 @@ inline event::Signal<HttpClient::State>& HttpClient::onStateChanged()
     return mStateChanged;
 }
 
-HttpClient::State HttpClient::state() const
+inline HttpClient::State HttpClient::state() const
 {
     return mState;
 }
 
-const std::shared_ptr<TcpSocket>& HttpClient::socket() const
+inline const std::shared_ptr<TcpSocket>& HttpClient::socket() const
 {
     return mSocket;
+}
+
+inline void HttpClient::write(const std::shared_ptr<buffer::Buffer>& buffer)
+{
+    if (mState != Connected || !mSocket)
+        return;
+    mSocket->write(buffer);
+}
+
+inline void HttpClient::write(std::shared_ptr<buffer::Buffer>&& buffer)
+{
+    if (mState != Connected || !mSocket)
+        return;
+    mSocket->write(std::move(buffer));
+}
+
+inline void HttpClient::write(const uint8_t* data, size_t bytes)
+{
+    if (mState != Connected || !mSocket)
+        return;
+    mSocket->write(data, bytes);
+}
+
+inline void HttpClient::write(const char* data, size_t bytes)
+{
+    if (mState != Connected || !mSocket)
+        return;
+    mSocket->write(data, bytes);
+}
+
+template<typename T, typename U>
+inline void HttpClient::Headers::add(T key, U value)
+{
+    push_back(std::make_pair(std::forward<typename std::decay<T>::type>(key), std::forward<typename std::decay<U>::type>(value)));
+}
+
+template<typename T>
+std::string HttpClient::Headers::find(T key) const
+{
+    const std::string keystr = std::forward<typename std::decay<T>::type>(key);
+    for (auto header : *this) {
+        if (header.first == keystr)
+            return header.second;
+    }
+    return std::string();
 }
 
 }} // namespace reckoning::net

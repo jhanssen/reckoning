@@ -3,6 +3,7 @@
 #include <log/Log.h>
 #include <net/TcpSocket.h>
 #include <net/HttpClient.h>
+#include <net/WebSocketClient.h>
 #include <string>
 
 using namespace reckoning;
@@ -94,6 +95,7 @@ int main(int argc, char** argv)
     socket->connect("www.google.com", 80);
     socket->write("GET / HTTP/1.0\r\n\r\n", 18);
     */
+    /*
     auto http = net::HttpClient::create();
     http->onResponse().connect([](net::HttpClient::Response&& response) {
             Log(Log::Info) << response.status << response.reason;
@@ -111,7 +113,17 @@ int main(int argc, char** argv)
             Log(Log::Info) << "http state" << state;
         });
     http->connect("www.google.com", 80);
-    http->get(net::HttpClient::v10, "/");
+    http->get(net::HttpClient::v11, "/");
+    */
+    auto ws = net::WebSocketClient::create();
+    ws->onStateChanged().connect([](net::WebSocketClient::State state) {
+            Log(Log::Info) << "ws state" << state;
+        });
+    ws->onMessage().connect([](std::shared_ptr<buffer::Buffer>&& msg) {
+            Log(Log::Info) << "msg" << msg->size();
+        });
+    ws->write("{\"foo\": 123}", 12);
+    ws->connect("localhost", 8999, "/");
 
     // std::shared_ptr<buffer::Buffer> buf1, buf2;
     // auto buf3 = buffer::Buffer::concat(buf1, buf2);

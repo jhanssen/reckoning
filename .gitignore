@@ -8,5 +8,6 @@ cmake_install.cmake
 bin/*
 *.dylib
 *.so
+*.a
 *.ninja
 .ninja*
