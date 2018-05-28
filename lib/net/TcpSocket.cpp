@@ -1,6 +1,7 @@
 #include "TcpSocket.h"
 #include <log/Log.h>
 #include <util/Socket.h>
+#include <buffer/Pool.h>
 #include <fcntl.h>
 
 using namespace reckoning;
@@ -298,12 +299,12 @@ void TcpSocket::processWrite(int fd)
     mPendingWrites.erase(mPendingWrites.begin(), it);
 }
 
-std::shared_ptr<buffer::Buffer<TcpSocket::BufferSize> > TcpSocket::read(size_t bytes)
+std::shared_ptr<buffer::Buffer> TcpSocket::read(size_t bytes)
 {
-    std::shared_ptr<buffer::Buffer<BufferSize> > buf = buffer::Pool<20, BufferSize>::pool().get();
+    std::shared_ptr<buffer::Buffer> buf = buffer::Pool<20, BufferSize>::pool().get();
     assert(buf);
 
-    auto processRead = [bytes](int fd, std::shared_ptr<buffer::Buffer<BufferSize> >& buf) {
+    auto processRead = [bytes](int fd, std::shared_ptr<buffer::Buffer>& buf) {
         int e;
         eintrwrap(e, ::read(fd, buf->data(), std::min<size_t>(bytes, BufferSize)));
         if (e > 0) {
@@ -339,9 +340,9 @@ std::shared_ptr<buffer::Buffer<TcpSocket::BufferSize> > TcpSocket::read(size_t b
         mState = Closed;
         mStateChanged.emit(shared_from_this(), Closed);
 
-        return std::shared_ptr<buffer::Buffer<BufferSize> >();
+        return std::shared_ptr<buffer::Buffer>();
     } else if (errno == -EAGAIN) {
-        return std::shared_ptr<buffer::Buffer<BufferSize> >();
+        return std::shared_ptr<buffer::Buffer>();
     }
 
     close();
@@ -350,7 +351,7 @@ std::shared_ptr<buffer::Buffer<TcpSocket::BufferSize> > TcpSocket::read(size_t b
     mStateChanged.emit(shared_from_this(), Error);
 
     Log(Log::Error) << "failed to read" << -e;
-    return std::shared_ptr<buffer::Buffer<BufferSize> >();
+    return std::shared_ptr<buffer::Buffer>();
 }
 
 void TcpSocket::write(const uint8_t* data, size_t bytes)
@@ -358,7 +359,7 @@ void TcpSocket::write(const uint8_t* data, size_t bytes)
     size_t rem = bytes;
     size_t where = 0;
     while (rem > 0) {
-        std::shared_ptr<buffer::Buffer<BufferSize> > buf = buffer::Pool<20, BufferSize>::pool().get();
+        std::shared_ptr<buffer::Buffer> buf = buffer::Pool<20, BufferSize>::pool().get();
         const size_t cur = std::min<size_t>(rem, BufferSize);
 
         memcpy(buf->data(), data + where, cur);

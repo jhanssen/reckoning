@@ -2,50 +2,54 @@
 #define BUFFERPOOL_H
 
 #include <memory>
+#include <vector>
 #include "Buffer.h"
 
 namespace reckoning {
 namespace buffer {
 
-template<size_t NumberOfBuffers, size_t Size>
+template<size_t NumberOfBuffers, size_t SizeOfBuffer>
 class Pool
 {
 public:
     Pool();
 
-    std::shared_ptr<Buffer<Size> > get();
+    std::shared_ptr<Buffer> get();
 
-    static Pool<NumberOfBuffers, Size>& pool();
+    static Pool<NumberOfBuffers, SizeOfBuffer>& pool();
 
 private:
-    std::vector<std::shared_ptr<Buffer<Size> > > mBuffers;
-    thread_local static Pool<NumberOfBuffers, Size> tPool;
+    std::vector<std::shared_ptr<Buffer> > mBuffers;
+    thread_local static Pool<NumberOfBuffers, SizeOfBuffer> tPool;
+    uint8_t mBufferData[NumberOfBuffers * SizeOfBuffer];
 };
 
-template<size_t NumberOfBuffers, size_t Size>
-thread_local Pool<NumberOfBuffers, Size> Pool<NumberOfBuffers, Size>::tPool;
+template<size_t NumberOfBuffers, size_t SizeOfBuffer>
+thread_local Pool<NumberOfBuffers, SizeOfBuffer> Pool<NumberOfBuffers, SizeOfBuffer>::tPool;
 
-template<size_t NumberOfBuffers, size_t Size>
-inline Pool<NumberOfBuffers, Size>::Pool()
+template<size_t NumberOfBuffers, size_t SizeOfBuffer>
+inline Pool<NumberOfBuffers, SizeOfBuffer>::Pool()
 {
     mBuffers.reserve(NumberOfBuffers);
+    uint8_t* mem = mBufferData;
     for (size_t i = 0; i < NumberOfBuffers; ++i) {
-        mBuffers.push_back(std::make_shared<Buffer<Size> >());
+        mBuffers.push_back(std::make_shared<Buffer>(mem, SizeOfBuffer));
+        mem += SizeOfBuffer;
     }
 }
 
-template<size_t NumberOfBuffers, size_t Size>
-std::shared_ptr<Buffer<Size> > Pool<NumberOfBuffers, Size>::get()
+template<size_t NumberOfBuffers, size_t SizeOfBuffer>
+std::shared_ptr<Buffer> Pool<NumberOfBuffers, SizeOfBuffer>::get()
 {
     for (const auto& buffer : mBuffers) {
         if (!buffer->isInUse())
             return buffer;
     }
-    return std::make_shared<Buffer<Size> >();
+    return std::make_shared<Buffer>(nullptr, SizeOfBuffer);
 }
 
-template<size_t NumberOfBuffers, size_t Size>
-Pool<NumberOfBuffers, Size>& Pool<NumberOfBuffers, Size>::pool()
+template<size_t NumberOfBuffers, size_t SizeOfBuffer>
+Pool<NumberOfBuffers, SizeOfBuffer>& Pool<NumberOfBuffers, SizeOfBuffer>::pool()
 {
     return tPool;
 }

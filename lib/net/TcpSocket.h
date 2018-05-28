@@ -1,10 +1,10 @@
 #ifndef TCPSOCKET_H
 #define TCPSOCKET_H
 
-#include <buffer/Pool.h>
 #include <event/EventLoop.h>
 #include <event/Signal.h>
 #include <net/Resolver.h>
+#include <buffer/Buffer.h>
 #include <memory>
 #include <string>
 
@@ -24,8 +24,8 @@ public:
     void connect(const Resolver::Response::IPv6& ip, uint16_t port);
     void close();
 
-    std::shared_ptr<buffer::Buffer<BufferSize> > read(size_t bytes = BufferSize);
-    void write(std::shared_ptr<buffer::Buffer<BufferSize> >&& buffer);
+    std::shared_ptr<buffer::Buffer> read(size_t bytes = BufferSize);
+    void write(std::shared_ptr<buffer::Buffer>&& buffer);
     void write(const uint8_t* data, size_t bytes);
     void write(const char* data, size_t bytes);
 
@@ -49,7 +49,7 @@ private:
 private:
     int mFd4, mFd6;
     size_t mWriteOffset;
-    std::vector<std::shared_ptr<buffer::Buffer<BufferSize> > > mPendingWrites;
+    std::vector<std::shared_ptr<buffer::Buffer> > mPendingWrites;
     std::shared_ptr<Resolver::Response> mResolver;
     event::EventLoop::FD mFd4Handle, mFd6Handle;
     event::Signal<std::shared_ptr<TcpSocket>&&, State> mStateChanged;
@@ -72,9 +72,9 @@ inline TcpSocket::State TcpSocket::state() const
     return mState;
 }
 
-inline void TcpSocket::write(std::shared_ptr<buffer::Buffer<BufferSize> >&& buffer)
+inline void TcpSocket::write(std::shared_ptr<buffer::Buffer>&& buffer)
 {
-    mPendingWrites.push_back(std::forward<std::shared_ptr<buffer::Buffer<BufferSize> > >(buffer));
+    mPendingWrites.push_back(std::forward<std::shared_ptr<buffer::Buffer> >(buffer));
     if (mState != Connected)
         return;
     if (mFd4 != -1) {

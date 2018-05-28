@@ -7,11 +7,11 @@
 namespace reckoning {
 namespace buffer {
 
-template<size_t Size>
-class Buffer : public std::enable_shared_from_this<Buffer<Size> >
+class Buffer : public std::enable_shared_from_this<Buffer>
 {
 public:
-    Buffer(size_t size = 0);
+    Buffer(uint8_t* data, size_t max);
+    ~Buffer();
 
     uint8_t* data();
     const uint8_t* data() const;
@@ -21,45 +21,51 @@ public:
     size_t size() const;
 
 private:
-    uint8_t mData[Size];
-    size_t mSize;
+    uint8_t* mData;
+    size_t mSize, mMax;
+    bool mOwned;
 };
 
-template<size_t Size>
-inline Buffer<Size>::Buffer(size_t sz)
-    : mSize(sz)
+inline Buffer::Buffer(uint8_t* data, size_t max)
+    : mData(data), mSize(max), mMax(max), mOwned(!data)
 {
+    if (mOwned) {
+        assert(!mData);
+        mData = reinterpret_cast<uint8_t*>(malloc(mMax));
+    }
 }
 
-template<size_t Size>
-inline uint8_t* Buffer<Size>::data()
+inline Buffer::~Buffer()
+{
+    if (mOwned) {
+        free(mData);
+    }
+}
+
+inline uint8_t* Buffer::data()
 {
     return mData;
 }
 
-template<size_t Size>
-inline const uint8_t* Buffer<Size>::data() const
+inline const uint8_t* Buffer::data() const
 {
     return mData;
 }
 
-template<size_t Size>
-inline bool Buffer<Size>::isInUse() const
+inline bool Buffer::isInUse() const
 {
-    auto buf = Buffer<Size>::shared_from_this();
+    auto buf = shared_from_this();
     assert(buf.use_count() >= 2);
     return buf.use_count() == 2;
 }
 
-template<size_t Size>
-inline void Buffer<Size>::setSize(size_t sz)
+inline void Buffer::setSize(size_t sz)
 {
-    assert(sz <= Size);
+    assert(sz <= mMax);
     mSize = sz;
 }
 
-template<size_t Size>
-inline size_t Buffer<Size>::size() const
+inline size_t Buffer::size() const
 {
     return mSize;
 }
