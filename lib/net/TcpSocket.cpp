@@ -366,8 +366,7 @@ void TcpSocket::write(const uint8_t* data, size_t bytes)
         std::shared_ptr<buffer::Buffer> buf = buffer::Pool<20, BufferSize>::pool().get();
         const size_t cur = std::min<size_t>(rem, BufferSize);
 
-        memcpy(buf->data(), data + where, cur);
-        buf->setSize(cur);
+        buf->assign(data + where, cur);
 
         write(std::move(buf));
 
