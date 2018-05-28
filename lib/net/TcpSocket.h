@@ -24,8 +24,8 @@ public:
     void connect(const Resolver::Response::IPv6& ip, uint16_t port);
     void close();
 
-    std::shared_ptr<buffer::Buffer> read(size_t bytes = BufferSize);
     void write(std::shared_ptr<buffer::Buffer>&& buffer);
+    void write(const std::shared_ptr<buffer::Buffer>& buffer);
     void write(const uint8_t* data, size_t bytes);
     void write(const char* data, size_t bytes);
 
@@ -38,8 +38,8 @@ public:
         Closed,
         Error
     };
-    event::Signal<std::shared_ptr<TcpSocket>&&, State>& onStateChanged();
-    event::Signal<std::shared_ptr<TcpSocket>&&>& onReadyRead();
+    event::Signal<State>& onStateChanged();
+    event::Signal<std::shared_ptr<buffer::Buffer>&&>& onData();
     State state() const;
 
 protected:
@@ -48,6 +48,7 @@ protected:
 private:
     void socketCallback(int fd, uint8_t flags);
     void processWrite(int fd);
+    std::shared_ptr<buffer::Buffer> read(size_t bytes = BufferSize);
 
 private:
     int mFd4, mFd6;
@@ -55,24 +56,40 @@ private:
     std::vector<std::shared_ptr<buffer::Buffer> > mPendingWrites;
     std::shared_ptr<Resolver::Response> mResolver;
     event::EventLoop::FD mFd4Handle, mFd6Handle;
-    event::Signal<std::shared_ptr<TcpSocket>&&, State> mStateChanged;
-    event::Signal<std::shared_ptr<TcpSocket>&&> mReadyRead;
+    event::Signal<State> mStateChanged;
+    event::Signal<std::shared_ptr<buffer::Buffer>&&> mData;
     State mState;
 };
 
-inline event::Signal<std::shared_ptr<TcpSocket>&&, TcpSocket::State>& TcpSocket::onStateChanged()
+inline event::Signal<TcpSocket::State>& TcpSocket::onStateChanged()
 {
     return mStateChanged;
 }
 
-inline event::Signal<std::shared_ptr<TcpSocket>&&>& TcpSocket::onReadyRead()
+inline event::Signal<std::shared_ptr<buffer::Buffer>&&>& TcpSocket::onData()
 {
-    return mReadyRead;
+    return mData;
 }
 
 inline TcpSocket::State TcpSocket::state() const
 {
     return mState;
+}
+
+inline void TcpSocket::write(const std::shared_ptr<buffer::Buffer>& buffer)
+{
+    mPendingWrites.push_back(buffer);
+    if (mState != Connected)
+        return;
+    if (mFd4 != -1) {
+        assert(mFd6 == -1);
+        processWrite(mFd4);
+    } else if (mFd6 != -1) {
+        assert(mFd4 == -1);
+        processWrite(mFd6);
+    } else {
+        assert(false && "No fd open for write?");
+    }
 }
 
 inline void TcpSocket::write(std::shared_ptr<buffer::Buffer>&& buffer)
@@ -91,7 +108,7 @@ inline void TcpSocket::write(std::shared_ptr<buffer::Buffer>&& buffer)
     }
 }
 
-void TcpSocket::write(const char* data, size_t bytes)
+inline void TcpSocket::write(const char* data, size_t bytes)
 {
     return write(reinterpret_cast<const uint8_t*>(data), bytes);
 }

@@ -16,7 +16,7 @@ public:
     Pool();
     ~Pool();
 
-    std::shared_ptr<Buffer> get();
+    std::shared_ptr<Buffer> get(size_t sz = 0);
 
     static Pool<NumberOfBuffers, SizeOfBuffer>& pool();
 
@@ -35,7 +35,7 @@ inline Pool<NumberOfBuffers, SizeOfBuffer>::Pool()
     mBuffers.reserve(NumberOfBuffers);
     uint8_t* mem = mBufferData;
     for (size_t i = 0; i < NumberOfBuffers; ++i) {
-        mBuffers.push_back(Buffer::create(mem, SizeOfBuffer));
+        mBuffers.push_back(Buffer::create(Buffer::NotOwned, mem, SizeOfBuffer));
         mem += SizeOfBuffer;
     }
 }
@@ -52,13 +52,15 @@ inline Pool<NumberOfBuffers, SizeOfBuffer>::~Pool()
 }
 
 template<size_t NumberOfBuffers, size_t SizeOfBuffer>
-std::shared_ptr<Buffer> Pool<NumberOfBuffers, SizeOfBuffer>::get()
+std::shared_ptr<Buffer> Pool<NumberOfBuffers, SizeOfBuffer>::get(size_t sz)
 {
-    for (const auto& buffer : mBuffers) {
-        if (!buffer->isInUse())
-            return buffer;
+    if (sz <= SizeOfBuffer) {
+        for (const auto& buffer : mBuffers) {
+            if (!buffer->isInUse())
+                return buffer;
+        }
     }
-    return Buffer::create(nullptr, SizeOfBuffer);
+    return Buffer::create(nullptr, sz > SizeOfBuffer ? sz : SizeOfBuffer);
 }
 
 template<size_t NumberOfBuffers, size_t SizeOfBuffer>

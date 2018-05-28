@@ -21,6 +21,9 @@ public:
 
     void setSize(size_t sz);
     size_t size() const;
+    size_t max() const;
+
+    void assign(const uint8_t* data, size_t size);
 
     template<typename... Args>
     static std::shared_ptr<Buffer> concat(Args&&... args);
@@ -28,10 +31,13 @@ public:
     using util::Creatable<Buffer>::create;
 
 protected:
+    enum NotOwnedTag { NotOwned };
+
     Buffer(size_t max);
     Buffer(uint8_t* data, size_t max);
+    Buffer(NotOwnedTag, uint8_t* data, size_t max);
 
-    static std::shared_ptr<Buffer> create(uint8_t* data, size_t max);
+    static std::shared_ptr<Buffer> create(NotOwnedTag, uint8_t* data, size_t max);
     bool isInUse() const;
     void setOwned(bool owned);
 
@@ -51,12 +57,16 @@ inline Buffer::Buffer(size_t max)
 }
 
 inline Buffer::Buffer(uint8_t* data, size_t max)
-    : mData(data), mSize(max), mMax(max), mOwned(!data)
+    : mData(data), mSize(max), mMax(max), mOwned(true)
 {
-    if (mOwned) {
-        assert(!mData);
+    if (!mData) {
         mData = reinterpret_cast<uint8_t*>(malloc(mMax));
     }
+}
+
+inline Buffer::Buffer(NotOwnedTag, uint8_t* data, size_t max)
+    : mData(data), mSize(max), mMax(max), mOwned(false)
+{
 }
 
 inline Buffer::~Buffer()
@@ -66,9 +76,9 @@ inline Buffer::~Buffer()
     }
 }
 
-std::shared_ptr<Buffer> Buffer::create(uint8_t* data, size_t max)
+inline std::shared_ptr<Buffer> Buffer::create(NotOwnedTag, uint8_t* data, size_t max)
 {
-    return util::Creatable<Buffer>::create(nullptr, max);
+    return util::Creatable<Buffer>::create(NotOwned, data, max);
 }
 
 inline uint8_t* Buffer::data()
@@ -94,9 +104,21 @@ inline void Buffer::setSize(size_t sz)
     mSize = sz;
 }
 
+inline size_t Buffer::max() const
+{
+    return mMax;
+}
+
 inline size_t Buffer::size() const
 {
     return mSize;
+}
+
+inline void Buffer::assign(const uint8_t* data, size_t size)
+{
+    assert(size <= mMax);
+    memcpy(mData, data, size);
+    mSize = size;
 }
 
 inline void Buffer::setOwned(bool owned)
@@ -113,13 +135,16 @@ struct Concat<First, Args...>
 {
     static void concat(uint8_t*& blob, size_t& used, size_t& size, First&& first, Args&&... args)
     {
-        if (used + first->size() > size) {
-            // realloc
-            blob = reinterpret_cast<uint8_t*>(realloc(blob, size + (first->size() * 2)));
-            size = size + (first->size() * 2);
+        const size_t fsz = first->size();
+        if (fsz > 0) {
+            if (used + fsz > size) {
+                // realloc
+                blob = reinterpret_cast<uint8_t*>(realloc(blob, size + (fsz * 2)));
+                size = size + (fsz * 2);
+            }
+            memcpy(blob + used, first->data(), fsz);
+            used += fsz;
         }
-        memcpy(blob + used, first->data(), first->size());
-        used += first->size();
         Concat<Args...>::concat(blob, used, size, std::forward<Args>(args)...);
     }
 };

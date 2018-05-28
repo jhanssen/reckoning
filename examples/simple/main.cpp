@@ -2,6 +2,7 @@
 #include <event/Signal.h>
 #include <log/Log.h>
 #include <net/TcpSocket.h>
+#include <net/HttpClient.h>
 #include <string>
 
 using namespace reckoning;
@@ -79,6 +80,7 @@ int main(int argc, char** argv)
             Log(Log::Info) << "s" << t.str();
         }, Test("send"));
 
+    /*
     std::shared_ptr<net::TcpSocket> socket = net::TcpSocket::create();
     socket->onStateChanged().connect([](std::shared_ptr<net::TcpSocket>&& socket, net::TcpSocket::State state) {
             Log(Log::Info) << "socket state change" << static_cast<int>(state);
@@ -91,6 +93,28 @@ int main(int argc, char** argv)
         });
     socket->connect("www.google.com", 80);
     socket->write("GET / HTTP/1.0\r\n\r\n", 18);
+    */
+    auto http = net::HttpClient::create();
+    http->onResponse().connect([](net::HttpClient::Response&& response) {
+            Log(Log::Info) << response.status << response.reason;
+            for (const auto& header : response.headers) {
+                Log(Log::Info) << header.first << header.second;
+            }
+        });
+    http->onBodyData().connect([](std::shared_ptr<buffer::Buffer>&& data) {
+            Log(Log::Info) << "body size" << data->size();
+        });
+    http->onBodyEnd().connect([]() {
+            Log(Log::Info) << "body end";
+        });
+    http->onStateChanged().connect([](net::HttpClient::State state) {
+            Log(Log::Info) << "http state" << state;
+        });
+    http->connect("www.google.com", 80);
+    http->get(net::HttpClient::v10, "/");
+
+    // std::shared_ptr<buffer::Buffer> buf1, buf2;
+    // auto buf3 = buffer::Buffer::concat(buf1, buf2);
 
     hey.join();
 
