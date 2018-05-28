@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <vector>
+#include <log/Log.h>
 #include "Buffer.h"
 
 namespace reckoning {
@@ -13,6 +14,7 @@ class Pool
 {
 public:
     Pool();
+    ~Pool();
 
     std::shared_ptr<Buffer> get();
 
@@ -35,6 +37,17 @@ inline Pool<NumberOfBuffers, SizeOfBuffer>::Pool()
     for (size_t i = 0; i < NumberOfBuffers; ++i) {
         mBuffers.push_back(Buffer::create(mem, SizeOfBuffer));
         mem += SizeOfBuffer;
+    }
+}
+
+template<size_t NumberOfBuffers, size_t SizeOfBuffer>
+inline Pool<NumberOfBuffers, SizeOfBuffer>::~Pool()
+{
+    for (const auto& buf : mBuffers) {
+        if (buf.use_count() != 1) {
+            // bad news
+            log::Log(log::Log::Fatal) << "Pool d'tor called when buffers still alive";
+        }
     }
 }
 
