@@ -5,18 +5,18 @@
 #include <event/Signal.h>
 #include <net/Resolver.h>
 #include <buffer/Buffer.h>
+#include <util/Creatable.h>
 #include <memory>
 #include <string>
 
 namespace reckoning {
 namespace net {
 
-class TcpSocket : public std::enable_shared_from_this<TcpSocket>
+class TcpSocket : public std::enable_shared_from_this<TcpSocket>, public util::Creatable<TcpSocket>
 {
 public:
     enum { BufferSize = 16384 };
 
-    TcpSocket();
     ~TcpSocket();
 
     void connect(const std::string& host, uint16_t port);
@@ -41,6 +41,9 @@ public:
     event::Signal<std::shared_ptr<TcpSocket>&&, State>& onStateChanged();
     event::Signal<std::shared_ptr<TcpSocket>&&>& onReadyRead();
     State state() const;
+
+protected:
+    TcpSocket();
 
 private:
     void socketCallback(int fd, uint8_t flags);

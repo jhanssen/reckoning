@@ -8,6 +8,7 @@
 #include <vector>
 #include <chrono>
 #include <event/Signal.h>
+#include <util/Creatable.h>
 
 #ifdef HAVE_KQUEUE
 #  include <sys/types.h>
@@ -18,10 +19,9 @@
 namespace reckoning {
 namespace event {
 
-class EventLoop : public std::enable_shared_from_this<EventLoop>
+class EventLoop : public std::enable_shared_from_this<EventLoop>, public util::Creatable<EventLoop>
 {
 public:
-    EventLoop();
     ~EventLoop();
 
     void init();
@@ -122,6 +122,9 @@ public:
     void exit(int status = 0);
 
     static std::shared_ptr<EventLoop> loop();
+
+protected:
+    EventLoop();
 
 private:
     void destroy();

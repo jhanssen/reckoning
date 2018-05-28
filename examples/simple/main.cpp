@@ -49,7 +49,7 @@ int main(int argc, char** argv)
 {
     Log::initialize(Log::Debug);
 
-    std::shared_ptr<event::EventLoop> loop = std::make_shared<event::EventLoop>();
+    std::shared_ptr<event::EventLoop> loop = event::EventLoop::create();
     loop->init();
 
     auto conn = sig.connect([](int i, Test&& t) {
@@ -79,7 +79,7 @@ int main(int argc, char** argv)
             Log(Log::Info) << "s" << t.str();
         }, Test("send"));
 
-    std::shared_ptr<net::TcpSocket> socket = std::make_shared<net::TcpSocket>();
+    std::shared_ptr<net::TcpSocket> socket = net::TcpSocket::create();
     socket->onStateChanged().connect([](std::shared_ptr<net::TcpSocket>&& socket, net::TcpSocket::State state) {
             Log(Log::Info) << "socket state change" << static_cast<int>(state);
         });
