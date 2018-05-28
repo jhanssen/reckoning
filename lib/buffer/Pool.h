@@ -33,7 +33,7 @@ inline Pool<NumberOfBuffers, SizeOfBuffer>::Pool()
     mBuffers.reserve(NumberOfBuffers);
     uint8_t* mem = mBufferData;
     for (size_t i = 0; i < NumberOfBuffers; ++i) {
-        mBuffers.push_back(std::make_shared<Buffer>(mem, SizeOfBuffer));
+        mBuffers.push_back(Buffer::create(mem, SizeOfBuffer));
         mem += SizeOfBuffer;
     }
 }
@@ -45,7 +45,7 @@ std::shared_ptr<Buffer> Pool<NumberOfBuffers, SizeOfBuffer>::get()
         if (!buffer->isInUse())
             return buffer;
     }
-    return std::make_shared<Buffer>(nullptr, SizeOfBuffer);
+    return Buffer::create(nullptr, SizeOfBuffer);
 }
 
 template<size_t NumberOfBuffers, size_t SizeOfBuffer>

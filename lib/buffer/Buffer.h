@@ -3,28 +3,48 @@
 
 #include <memory>
 #include <cassert>
+#include <util/Creatable.h>
 
 namespace reckoning {
 namespace buffer {
 
-class Buffer : public std::enable_shared_from_this<Buffer>
+template<size_t NumberOfBuffers, size_t SizeOfBuffer>
+class Pool;
+
+class Buffer : public std::enable_shared_from_this<Buffer>, public util::Creatable<Buffer>
 {
 public:
-    Buffer(uint8_t* data, size_t max);
     ~Buffer();
 
     uint8_t* data();
     const uint8_t* data() const;
-    bool isInUse() const;
 
     void setSize(size_t sz);
     size_t size() const;
 
+    using util::Creatable<Buffer>::create;
+
+protected:
+    Buffer(size_t max);
+    Buffer(uint8_t* data, size_t max);
+
+    static std::shared_ptr<Buffer> create(uint8_t* data, size_t max);
+    bool isInUse() const;
+
 private:
+    template<size_t NumberOfBuffers, size_t SizeOfBuffer>
+    friend class Pool;
+
     uint8_t* mData;
     size_t mSize, mMax;
     bool mOwned;
 };
+
+inline Buffer::Buffer(size_t max)
+    : mSize(max), mMax(max), mOwned(true)
+{
+    mData = reinterpret_cast<uint8_t*>(malloc(mMax));
+}
 
 inline Buffer::Buffer(uint8_t* data, size_t max)
     : mData(data), mSize(max), mMax(max), mOwned(!data)
@@ -40,6 +60,11 @@ inline Buffer::~Buffer()
     if (mOwned) {
         free(mData);
     }
+}
+
+std::shared_ptr<Buffer> Buffer::create(uint8_t* data, size_t max)
+{
+    return util::Creatable<Buffer>::create(nullptr, max);
 }
 
 inline uint8_t* Buffer::data()
