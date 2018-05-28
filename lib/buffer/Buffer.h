@@ -22,6 +22,9 @@ public:
     void setSize(size_t sz);
     size_t size() const;
 
+    template<typename... Args>
+    static std::shared_ptr<Buffer> concat(Args&&... args);
+
     using util::Creatable<Buffer>::create;
 
 protected:
@@ -30,6 +33,7 @@ protected:
 
     static std::shared_ptr<Buffer> create(uint8_t* data, size_t max);
     bool isInUse() const;
+    void setOwned(bool owned);
 
 private:
     template<size_t NumberOfBuffers, size_t SizeOfBuffer>
@@ -93,6 +97,52 @@ inline void Buffer::setSize(size_t sz)
 inline size_t Buffer::size() const
 {
     return mSize;
+}
+
+inline void Buffer::setOwned(bool owned)
+{
+    mOwned = owned;
+}
+
+namespace detail {
+template<typename... Args>
+struct Concat;
+
+template<typename First, typename... Args>
+struct Concat<First, Args...>
+{
+    static void concat(uint8_t*& blob, size_t& used, size_t& size, First&& first, Args&&... args)
+    {
+        if (used + first->size() > size) {
+            // realloc
+            blob = reinterpret_cast<uint8_t*>(realloc(blob, size + (first->size() * 2)));
+            size = size + (first->size() * 2);
+        }
+        memcpy(blob + used, first->data(), first->size());
+        used += first->size();
+        Concat<Args...>::concat(blob, used, size, std::forward<Args>(args)...);
+    }
+};
+
+template<>
+struct Concat<>
+{
+    static void concat(uint8_t*& blob, size_t& used, size_t& size)
+    {
+    }
+};
+} // namespace detail
+
+template<typename... Args>
+inline std::shared_ptr<Buffer> Buffer::concat(Args&&... args)
+{
+    uint8_t* blob = nullptr;
+    size_t used = 0, size = 0;
+    detail::Concat<Args...>::concat(blob, used, size, std::forward<Args>(args)...);
+    auto buf = Buffer::create(blob, size);
+    buf->setSize(used);
+    buf->setOwned(true);
+    return buf;
 }
 
 }} // namespace reckoning::buffer
