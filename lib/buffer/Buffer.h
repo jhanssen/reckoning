@@ -24,6 +24,7 @@ public:
     size_t max() const;
 
     void assign(const uint8_t* data, size_t size);
+    void append(const uint8_t* data, size_t size);
 
     template<typename... Args>
     static std::shared_ptr<Buffer> concat(Args&&... args);
@@ -119,6 +120,13 @@ inline void Buffer::assign(const uint8_t* data, size_t size)
     assert(size <= mMax);
     memcpy(mData, data, size);
     mSize = size;
+}
+
+inline void Buffer::append(const uint8_t* data, size_t size)
+{
+    assert(mSize + size <= mMax);
+    memcpy(mData + mSize, data, size);
+    mSize += size;
 }
 
 inline void Buffer::setOwned(bool owned)

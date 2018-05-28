@@ -54,7 +54,7 @@ protected:
 
 private:
     void prepare(const char* method, HttpVersion version, const std::string& query, const Headers& headers);
-    bool parseBody(uint8_t* body, size_t size);
+    bool parseBody(std::shared_ptr<buffer::Buffer>&& buffer, size_t offset);
 
 private:
     event::Signal<Response&&> mResponse;
@@ -63,14 +63,16 @@ private:
     event::Signal<State> mStateChanged;
     State mState;
     std::shared_ptr<TcpSocket> mSocket;
-    std::shared_ptr<buffer::Buffer> mReadBuffer;
+    std::shared_ptr<buffer::Buffer> mHeaderBuffer, mBodyBuffer;
     std::string mTransferEncoding;
-    int64_t mContentLength, mReceived;;
+    int64_t mContentLength, mReceived, mChunkSize;
+    size_t mChunkPrefix;
     bool mHeadersReceived, mChunked, mPendingBodyEnd;
 };
 
 inline HttpClient::HttpClient()
-    : mState(Idle), mContentLength(-1), mReceived(0), mHeadersReceived(false), mChunked(false), mPendingBodyEnd(false)
+    : mState(Idle), mContentLength(-1), mReceived(0), mChunkSize(0), mChunkPrefix(0),
+      mHeadersReceived(false), mChunked(false), mPendingBodyEnd(false)
 {
 }
 

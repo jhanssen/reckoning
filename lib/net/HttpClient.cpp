@@ -6,12 +6,125 @@
 using namespace reckoning;
 using namespace reckoning::net;
 
-inline bool HttpClient::parseBody(uint8_t* body, size_t size)
+inline bool HttpClient::parseBody(std::shared_ptr<buffer::Buffer>&& body, size_t offset)
 {
+    enum { MaxChunkSize = 1024 * 1000 };
+
     if (!mChunked)
         return false;
-    // handle chunked here
-    return false;
+    if (mBodyBuffer) {
+        if (offset) {
+            // manual concat
+            auto newBody = buffer::Pool<20, TcpSocket::BufferSize>::pool().get(mBodyBuffer->size() + body->size() - offset);
+            newBody->assign(mBodyBuffer->data(), mBodyBuffer->size());
+            newBody->append(body->data() + offset, body->size() - offset);
+        } else {
+            mBodyBuffer = buffer::Buffer::concat(mBodyBuffer, body);
+        }
+    } else {
+        mChunkSize = 0;
+        mChunkPrefix = 0;
+        if (offset) {
+            mBodyBuffer = buffer::Pool<20, TcpSocket::BufferSize>::pool().get(body->size() - offset);
+            mBodyBuffer->assign(body->data() + offset, body->size() - offset);
+        } else {
+            mBodyBuffer = std::move(body);
+        }
+    }
+    if (mChunkSize) {
+        // see if this completes our chunk
+        if (mBodyBuffer->size() - mChunkPrefix >= mChunkSize) {
+            // yes it does
+            auto newBody = buffer::Pool<20, TcpSocket::BufferSize>::pool().get(mChunkSize);
+            newBody->assign(mBodyBuffer->data() + mChunkPrefix, mChunkSize);
+            mBodyData.emit(std::move(newBody));
+
+            // did we use up our buffer?
+            if (mChunkPrefix + mChunkSize + 2 == mBodyBuffer->size()) {
+                // yes
+                mBodyBuffer.reset();
+                return true;
+            } else {
+                // no, let's make a new buffer and continue
+                assert(mChunkPrefix + mChunkSize + 2 < mBodyBuffer->size());
+                const size_t sz = mBodyBuffer->size() - (mChunkPrefix + mChunkSize + 2);
+                newBody = buffer::Pool<20, TcpSocket::BufferSize>::pool().get(sz);
+                newBody->assign(mBodyBuffer->data() + mChunkPrefix + mChunkSize + 2, sz);
+                mBodyBuffer = std::move(newBody);
+                mChunkSize = 0;
+                mChunkPrefix = 0;
+            }
+        } else {
+            // nope, bail out
+            return true;
+        }
+    }
+    char* start = reinterpret_cast<char*>(mBodyBuffer->data());
+    char* end = reinterpret_cast<char*>(mBodyBuffer->data() + (mBodyBuffer->size()));
+    size_t rem = mBodyBuffer->size();
+    for (;;) {
+        // find our newline
+        char* eol = strnstr(start, "\r\n", rem);
+        if (!eol) {
+            // we done
+            return true;
+        }
+        // parse chunked size
+        char* endptr;
+        const long size = strtol(start, &endptr, 16);
+        if (endptr != eol) {
+            // bad
+            log::Log(log::Log::Error) << "failed to parse chunk size" << size << *endptr << std::string(start, eol - start);
+            mState = Error;
+            mStateChanged.emit(Error);
+            mBodyBuffer.reset();
+            close();
+            return true;
+        }
+        // verify that our chunk size isn't too big
+        if (size > MaxChunkSize) {
+            log::Log(log::Log::Error) << "chunk size too big" << size << MaxChunkSize;
+            mState = Error;
+            mStateChanged.emit(Error);
+            mBodyBuffer.reset();
+            close();
+            return true;
+        }
+        if (!size) {
+            // this was our last chunk
+            mBodyEnd.emit();
+            mBodyBuffer.reset();
+            return true;
+        }
+        // do we have this kind of data in our chunk?
+        if (end - (eol + 2) >= size) {
+            assert(eol + 2 + size + 2 <= end);
+            // indeed we do
+            auto newBody = buffer::Pool<20, TcpSocket::BufferSize>::pool().get(size);
+            newBody->assign(reinterpret_cast<uint8_t*>(eol + 2), size);
+            mBodyData.emit(std::move(newBody));
+            // mayhaps we have more data to process?
+            if (eol + 2 + size + 2 < end) {
+                // why yes we do
+                assert(eol + 2 + size + 2 > start);
+                rem -= (eol + 2 + size + 2) - start;
+                start = eol + 2 + size + 2;
+                assert(*eol == '\r' && *(eol + 1) == '\n');
+                assert(*(eol + 2 + size) == '\r');
+                assert(*(eol + 2 + size + 1) == '\r');
+                continue;
+            }
+            // no, we're done
+            mBodyBuffer.reset();
+        } else {
+            // no, we'll have to wait
+            mChunkPrefix = (eol + 2) - start;
+            mChunkSize = size;
+            return true;
+        }
+    }
+
+    return true;
 }
 
 void HttpClient::connect(const std::string& host, uint16_t port)
@@ -76,20 +189,20 @@ void HttpClient::connect(const std::string& host, uint16_t port)
                 if (!buf)
                     return;
                 // is our end sequence in this chunk?
-                if (mReadBuffer->size() > 0 || buf->size() < 4) {
-                    if (mReadBuffer->size() + buf->size() > MaxHeaderSize) {
+                if (mHeaderBuffer->size() > 0 || buf->size() < 4) {
+                    if (mHeaderBuffer->size() + buf->size() > MaxHeaderSize) {
                         // consider this request malformed
-                        log::Log(log::Log::Error) << "maximum header size exceeded" << mReadBuffer->size() + buf->size();
+                        log::Log(log::Log::Error) << "maximum header size exceeded" << mHeaderBuffer->size() + buf->size();
                         mState = Error;
                         mStateChanged.emit(Error);
                         close();
                         return;
                     }
-                    mReadBuffer = buffer::Buffer::concat(mReadBuffer, buf);
-                    if (mReadBuffer->size() < 4)
+                    mHeaderBuffer = buffer::Buffer::concat(mHeaderBuffer, buf);
+                    if (mHeaderBuffer->size() < 4)
                         return;
 
-                    buf = mReadBuffer;
+                    buf = mHeaderBuffer;
                 }
                 char* end = strnstr(reinterpret_cast<char*>(buf->data()), "\r\n\r\n", buf->size());
                 if (!end)
@@ -173,11 +286,11 @@ void HttpClient::connect(const std::string& host, uint16_t port)
                 mResponse.emit(std::move(response));
                 uint8_t* bodyStart = reinterpret_cast<uint8_t*>(end);
                 if (bodyStart >= buf->data() + buf->size()) {
-                    mReadBuffer.reset();
+                    mHeaderBuffer.reset();
                     return;
                 }
                 const size_t bodyLength = (buf->data() + buf->size()) - bodyStart;
-                if (!parseBody(bodyStart, bodyLength)) {
+                if (!parseBody(std::move(buf), bodyStart - buf->data())) {
                     if (bodyLength > 0) {
                         auto body = buffer::Pool<20, TcpSocket::BufferSize>::pool().get(bodyLength);
                         body->assign(bodyStart, bodyLength);
@@ -185,12 +298,12 @@ void HttpClient::connect(const std::string& host, uint16_t port)
                     }
                     maybeEmitEnd(bodyLength);
                 }
-                mReadBuffer.reset();
+                mHeaderBuffer.reset();
                 return;
             }
             // work on body
             const size_t sz = buf->size();
-            if (!parseBody(buf->data(), sz)) {
+            if (!parseBody(std::move(buf), 0)) {
                 mBodyData.emit(std::move(buf));
                 maybeEmitEnd(sz);
             }
@@ -208,14 +321,16 @@ void HttpClient::close()
 inline void HttpClient::prepare(const char* method, HttpVersion version, const std::string& query, const Headers& headers)
 {
     mHeadersReceived = false;
-    mReadBuffer = buffer::Pool<20, TcpSocket::BufferSize>::pool().get();
-    mReadBuffer->setSize(0);
+    mHeaderBuffer = buffer::Pool<20, TcpSocket::BufferSize>::pool().get();
+    mHeaderBuffer->setSize(0);
     mContentLength = -1;
     mPendingBodyEnd = true;
     mReceived = 0;
+    mChunkSize = 0;
+    mChunkPrefix = 0;
     mTransferEncoding.clear();
     mChunked = false;
-    assert(mReadBuffer);
+    assert(mHeaderBuffer);
 
     auto buf = buffer::Pool<20, TcpSocket::BufferSize>::pool().get();
     // build our request
