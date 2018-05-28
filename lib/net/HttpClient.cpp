@@ -8,14 +8,14 @@ using namespace reckoning::net;
 
 inline bool HttpClient::parseBody(std::shared_ptr<buffer::Buffer>&& body, size_t offset)
 {
-    enum { MaxChunkSize = 1024 * 1000 };
+    enum { MaxChunkSize = 1024 * 1000, ChunkBufferNo = 4, ChunkBufferSize = 1024 * 256 };
 
     if (!mChunked)
         return false;
     if (mBodyBuffer) {
         if (offset) {
             // manual concat
-            auto newBody = buffer::Pool<20, TcpSocket::BufferSize>::pool().get(mBodyBuffer->size() + body->size() - offset);
+            auto newBody = buffer::Pool<ChunkBufferNo, ChunkBufferSize>::pool().get(mBodyBuffer->size() + body->size() - offset);
             newBody->assign(mBodyBuffer->data(), mBodyBuffer->size());
             newBody->append(body->data() + offset, body->size() - offset);
         } else {
@@ -25,7 +25,7 @@ inline bool HttpClient::parseBody(std::shared_ptr<buffer::Buffer>&& body, size_t
         mChunkSize = 0;
         mChunkPrefix = 0;
         if (offset) {
-            mBodyBuffer = buffer::Pool<20, TcpSocket::BufferSize>::pool().get(body->size() - offset);
+            mBodyBuffer = buffer::Pool<ChunkBufferNo, ChunkBufferSize>::pool().get(body->size() - offset);
             mBodyBuffer->assign(body->data() + offset, body->size() - offset);
         } else {
             mBodyBuffer = std::move(body);
@@ -35,7 +35,7 @@ inline bool HttpClient::parseBody(std::shared_ptr<buffer::Buffer>&& body, size_t
         // see if this completes our chunk
         if (mBodyBuffer->size() - mChunkPrefix >= mChunkSize) {
             // yes it does
-            auto newBody = buffer::Pool<20, TcpSocket::BufferSize>::pool().get(mChunkSize);
+            auto newBody = buffer::Pool<ChunkBufferNo, ChunkBufferSize>::pool().get(mChunkSize);
             newBody->assign(mBodyBuffer->data() + mChunkPrefix, mChunkSize);
             mBodyData.emit(std::move(newBody));
 
@@ -48,7 +48,7 @@ inline bool HttpClient::parseBody(std::shared_ptr<buffer::Buffer>&& body, size_t
                 // no, let's make a new buffer and continue
                 assert(mChunkPrefix + mChunkSize + 2 < mBodyBuffer->size());
                 const size_t sz = mBodyBuffer->size() - (mChunkPrefix + mChunkSize + 2);
-                newBody = buffer::Pool<20, TcpSocket::BufferSize>::pool().get(sz);
+                newBody = buffer::Pool<ChunkBufferNo, ChunkBufferSize>::pool().get(sz);
                 newBody->assign(mBodyBuffer->data() + mChunkPrefix + mChunkSize + 2, sz);
                 mBodyBuffer = std::move(newBody);
                 mChunkSize = 0;
@@ -100,7 +100,7 @@ inline bool HttpClient::parseBody(std::shared_ptr<buffer::Buffer>&& body, size_t
         if (end - (eol + 2) >= size) {
             assert(eol + 2 + size + 2 <= end);
             // indeed we do
-            auto newBody = buffer::Pool<20, TcpSocket::BufferSize>::pool().get(size);
+            auto newBody = buffer::Pool<ChunkBufferNo, ChunkBufferSize>::pool().get(size);
             newBody->assign(reinterpret_cast<uint8_t*>(eol + 2), size);
             mBodyData.emit(std::move(newBody));
             // mayhaps we have more data to process?
