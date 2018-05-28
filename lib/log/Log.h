@@ -121,7 +121,7 @@ inline Log& Log::operator<<(T num)
 template<typename T, typename std::enable_if<std::is_enum<T>::value, T>::type*>
 inline Log& Log::operator<<(T num)
 {
-    return operator<<(std::to_string(static_cast<uint64_t>(num)).c_str());
+    return operator<<(std::to_string(static_cast<int64_t>(num)).c_str());
 }
 
 inline const Log::EndLine& Log::endl()
