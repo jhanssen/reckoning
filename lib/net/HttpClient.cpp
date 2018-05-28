@@ -20,7 +20,7 @@ inline bool HttpClient::parseBody(std::shared_ptr<buffer::Buffer>&& body, size_t
             newBody->append(body->data() + offset, body->size() - offset);
             mBodyBuffer = std::move(newBody);
         } else {
-            mBodyBuffer = buffer::Buffer::concat(mBodyBuffer, body);
+            mBodyBuffer = buffer::Pool<ChunkBufferNo, ChunkBufferSize>::pool().concat(mBodyBuffer, body);
         }
     } else {
         mChunkSize = 0;
@@ -209,7 +209,7 @@ void HttpClient::connect(const std::string& host, uint16_t port)
                         close();
                         return;
                     }
-                    mHeaderBuffer = buffer::Buffer::concat(mHeaderBuffer, buf);
+                    mHeaderBuffer = buffer::Pool<20, TcpSocket::BufferSize>::pool().concat(mHeaderBuffer, buf);
                     if (mHeaderBuffer->size() < 4)
                         return;
 

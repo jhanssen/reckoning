@@ -18,6 +18,9 @@ public:
 
     std::shared_ptr<Buffer> get(size_t sz = 0);
 
+    template<typename... Args>
+    std::shared_ptr<Buffer> concat(Args&&... args);
+
     static Pool<NumberOfBuffers, SizeOfBuffer>& pool();
 
 private:
@@ -67,6 +70,19 @@ template<size_t NumberOfBuffers, size_t SizeOfBuffer>
 Pool<NumberOfBuffers, SizeOfBuffer>& Pool<NumberOfBuffers, SizeOfBuffer>::pool()
 {
     return tPool;
+}
+
+template<size_t NumberOfBuffers, size_t SizeOfBuffer>
+template<typename... Args>
+std::shared_ptr<Buffer> Pool<NumberOfBuffers, SizeOfBuffer>::concat(Args&&... args)
+{
+    auto buf = get();
+    const size_t used = Buffer::concat<SizeOfBuffer>(buf->data(), buf->max(), std::forward<Args>(args)...);
+    if (used > 0) {
+        buf->setSize(used);
+        return buf;
+    }
+    return Buffer::concat(std::forward<Args>(args)...);
 }
 
 }} // namespace reckoning::buffer
