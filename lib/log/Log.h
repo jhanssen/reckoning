@@ -64,6 +64,9 @@ inline Log::Log(Level level, Output output)
 inline Log::~Log()
 {
     operator<<("\n");
+    if (mLevel == Fatal) {
+        abort();
+    }
     sMutex.unlock();
 }
 
