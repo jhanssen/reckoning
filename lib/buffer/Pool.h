@@ -77,7 +77,7 @@ template<typename... Args>
 std::shared_ptr<Buffer> Pool<NumberOfBuffers, SizeOfBuffer>::concat(Args&&... args)
 {
     auto buf = get();
-    const size_t used = Buffer::concat<SizeOfBuffer>(buf->data(), buf->max(), std::forward<Args>(args)...);
+    const size_t used = Buffer::concat<SizeOfBuffer>(buf->data(), std::forward<Args>(args)...);
     if (used > 0) {
         buf->setSize(used);
         return buf;

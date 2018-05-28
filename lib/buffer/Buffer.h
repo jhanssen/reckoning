@@ -30,7 +30,7 @@ public:
     static std::shared_ptr<Buffer> concat(Args&&... args);
 
     template<size_t MaxSize, typename... Args>
-    static size_t concat(uint8_t* blob, size_t size, Args&&... args);
+    static size_t concat(uint8_t* blob, Args&&... args);
 
     using util::Creatable<Buffer>::create;
 
@@ -181,12 +181,12 @@ inline std::shared_ptr<Buffer> Buffer::concat(Args&&... args)
 }
 
 template<size_t MaxSize, typename... Args>
-inline size_t Buffer::concat(uint8_t* b, size_t s, Args&&... args)
+inline size_t Buffer::concat(uint8_t* b, Args&&... args)
 {
     uint8_t* blob = b;
-    size_t used = 0, size = s;
+    size_t used = 0, size = MaxSize;
     detail::Concat<MaxSize, Args...>::concat(blob, used, size, std::forward<Args>(args)...);
-    assert(size == s);
+    assert(size == MaxSize);
     if (blob == nullptr) {
         return 0;
     }
