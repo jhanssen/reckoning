@@ -56,7 +56,7 @@ inline bool Buffer::isInUse() const
 {
     auto buf = shared_from_this();
     assert(buf.use_count() >= 2);
-    return buf.use_count() == 2;
+    return buf.use_count() > 2;
 }
 
 inline void Buffer::setSize(size_t sz)
