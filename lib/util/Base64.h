@@ -58,7 +58,6 @@ inline size_t encode(const uint8_t* input, size_t inputSize, uint8_t* output, si
             *(out++) = base64_chars[char_array_4[j]];
 
         while((i++ < 3)) {
-            printf("assigning equal\n");
             *(out++) = '=';
         }
 
