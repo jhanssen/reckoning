@@ -18,6 +18,7 @@ inline bool HttpClient::parseBody(std::shared_ptr<buffer::Buffer>&& body, size_t
             auto newBody = buffer::Pool<ChunkBufferNo, ChunkBufferSize>::pool().get(mBodyBuffer->size() + body->size() - offset);
             newBody->assign(mBodyBuffer->data(), mBodyBuffer->size());
             newBody->append(body->data() + offset, body->size() - offset);
+            mBodyBuffer = std::move(newBody);
         } else {
             mBodyBuffer = buffer::Buffer::concat(mBodyBuffer, body);
         }
@@ -33,7 +34,7 @@ inline bool HttpClient::parseBody(std::shared_ptr<buffer::Buffer>&& body, size_t
     }
     if (mChunkSize) {
         // see if this completes our chunk
-        if (mBodyBuffer->size() - mChunkPrefix >= mChunkSize) {
+        if (mBodyBuffer->size() - mChunkPrefix + 2 >= mChunkSize) {
             // yes it does
             auto newBody = buffer::Pool<ChunkBufferNo, ChunkBufferSize>::pool().get(mChunkSize);
             newBody->assign(mBodyBuffer->data() + mChunkPrefix, mChunkSize);
@@ -97,7 +98,7 @@ inline bool HttpClient::parseBody(std::shared_ptr<buffer::Buffer>&& body, size_t
             return true;
         }
         // do we have this kind of data in our chunk?
-        if (end - (eol + 2) >= size) {
+        if (end - (eol + 2) >= size + 2) {
             assert(eol + 2 + size + 2 <= end);
             // indeed we do
             auto newBody = buffer::Pool<ChunkBufferNo, ChunkBufferSize>::pool().get(size);
@@ -111,14 +112,24 @@ inline bool HttpClient::parseBody(std::shared_ptr<buffer::Buffer>&& body, size_t
                 start = eol + 2 + size + 2;
                 assert(*eol == '\r' && *(eol + 1) == '\n');
                 assert(*(eol + 2 + size) == '\r');
-                assert(*(eol + 2 + size + 1) == '\r');
+                assert(*(eol + 2 + size + 1) == '\n');
                 continue;
             }
             // no, we're done
             mBodyBuffer.reset();
+            return true;
         } else {
             // no, we'll have to wait
-            mChunkPrefix = (eol + 2) - start;
+            const uint8_t* startu8 = reinterpret_cast<uint8_t*>(start);
+            if (startu8 == mBodyBuffer->data()) {
+                mChunkPrefix = (eol + 2) - start;
+            } else {
+                assert(rem > 0);
+                auto newBody = buffer::Pool<ChunkBufferNo, ChunkBufferSize>::pool().get(rem);
+                newBody->assign(startu8, rem);
+                mBodyBuffer = std::move(newBody);
+                mChunkPrefix = (eol - start) + 2;
+            }
             mChunkSize = size;
             return true;
         }
