@@ -45,6 +45,8 @@ void HttpClient::connect(const std::string& host, uint16_t port)
             }
         });
     mSocket->onData().connect([this](std::shared_ptr<buffer::Buffer>&& buf) {
+            enum { MaxHeaderSize = 32768 };
+
             auto maybeEmitEnd = [this](size_t sz) {
                 if (mContentLength == -1)
                     return;
@@ -56,6 +58,8 @@ void HttpClient::connect(const std::string& host, uint16_t port)
                 } else if (mReceived > mContentLength) {
                     // badly behaved server?
                     log::Log(log::Log::Error) << "got too much data from http server" << mReceived << mContentLength;
+                    mState = Error;
+                    mStateChanged.emit(Error);
                     close();
                 }
             };
@@ -73,9 +77,18 @@ void HttpClient::connect(const std::string& host, uint16_t port)
                     return;
                 // is our end sequence in this chunk?
                 if (mReadBuffer->size() > 0 || buf->size() < 4) {
+                    if (mReadBuffer->size() + buf->size() > MaxHeaderSize) {
+                        // consider this request malformed
+                        log::Log(log::Log::Error) << "maximum header size exceeded" << mReadBuffer->size() + buf->size();
+                        mState = Error;
+                        mStateChanged.emit(Error);
+                        close();
+                        return;
+                    }
                     mReadBuffer = buffer::Buffer::concat(mReadBuffer, buf);
                     if (mReadBuffer->size() < 4)
                         return;
+
                     buf = mReadBuffer;
                 }
                 char* end = strnstr(reinterpret_cast<char*>(buf->data()), "\r\n\r\n", buf->size());
@@ -94,12 +107,16 @@ void HttpClient::connect(const std::string& host, uint16_t port)
                     if (!sp1) {
                         // malformed response
                         log::Log(log::Log::Error) << "malformed http status line" << std::string(cur, eol - cur);
+                        mState = Error;
+                        mStateChanged.emit(Error);
                         close();
                     }
                     char* sp2 = reinterpret_cast<char*>(memchr(sp1 + 1, ' ', end - (sp1 + 1)));
                     if (!sp2) {
                         // malformed response
                         log::Log(log::Log::Error) << "malformed http status line" << std::string(cur, eol - cur);
+                        mState = Error;
+                        mStateChanged.emit(Error);
                         close();
                     }
                     char* endptr;
@@ -107,6 +124,8 @@ void HttpClient::connect(const std::string& host, uint16_t port)
                     if (endptr > sp2 || status < 100 || status >= 600) {
                         // malformed response
                         log::Log(log::Log::Error) << "malformed http status line" << std::string(cur, eol - cur);
+                        mState = Error;
+                        mStateChanged.emit(Error);
                         close();
                     }
                     response.status = static_cast<uint8_t>(status);
@@ -136,6 +155,8 @@ void HttpClient::connect(const std::string& host, uint16_t port)
                                 // bad content length
                                 mContentLength = -1;
                                 log::Log(log::Log::Error) << "bad content length from http client";
+                                mState = Error;
+                                mStateChanged.emit(Error);
                                 close();
                                 return;
                             }
@@ -206,6 +227,8 @@ inline void HttpClient::prepare(const char* method, HttpVersion version, const s
     builder << "\r\n";
     if (builder.overflow()) {
         log::Log(log::Log::Error) << "Http request too large, max" << buf->max();
+        mState = Error;
+        mStateChanged.emit(Error);
         return;
     }
     builder.flush();
@@ -216,6 +239,8 @@ void HttpClient::get(HttpVersion version, const std::string& query, const Header
 {
     if (!mSocket) {
         log::Log(log::Log::Error) << "No connected TCP socket for HTTP client";
+        mState = Error;
+        mStateChanged.emit(Error);
         return;
     }
     prepare("GET ", version, query, headers);
@@ -225,6 +250,8 @@ void HttpClient::post(HttpVersion version, const std::string& query, const Heade
 {
     if (!mSocket) {
         log::Log(log::Log::Error) << "No connected TCP socket for HTTP client";
+        mState = Error;
+        mStateChanged.emit(Error);
         return;
     }
     prepare("POST ", version, query, headers);
@@ -235,6 +262,8 @@ void HttpClient::post(HttpVersion version, const std::string& query, const Heade
 {
     if (!mSocket) {
         log::Log(log::Log::Error) << "No connected TCP socket for HTTP client";
+        mState = Error;
+        mStateChanged.emit(Error);
         return;
     }
     prepare("POST ", version, query, headers);
@@ -243,6 +272,12 @@ void HttpClient::post(HttpVersion version, const std::string& query, const Heade
 
 void HttpClient::post(HttpVersion version, const std::string& query, const Headers& headers, const std::string& body)
 {
+    if (!mSocket) {
+        log::Log(log::Log::Error) << "No connected TCP socket for HTTP client";
+        mState = Error;
+        mStateChanged.emit(Error);
+        return;
+    }
     prepare("POST ", version, query, headers);
     mSocket->write(&body[0], body.size());
 }
