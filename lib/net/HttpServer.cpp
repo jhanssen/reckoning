@@ -92,7 +92,6 @@ inline void HttpServer::setupServer()
                         Log(Log::Error) << "http request too large";
                         return;
                     }
-                    Log(Log::Error) << "got request at" << where << "in" << buffer->size();
 
                     char* cur = reinterpret_cast<char*>(buffer->data());
                     char* end = cur + where + 4;
