@@ -144,7 +144,7 @@ struct Concat<MaxSize, First, Args...>
         if (fsz > 0) {
             if (used + fsz > size) {
                 // realloc
-                if (!MaxSize) {
+                if constexpr (!MaxSize) {
                     blob = reinterpret_cast<uint8_t*>(realloc(blob, size + (fsz * 2)));
                     size = size + (fsz * 2);
                 } else {
