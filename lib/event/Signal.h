@@ -56,7 +56,10 @@ public:
     class Connection
     {
     public:
+        Connection();
+
         void disconnect();
+        bool connected() const;
 
     private:
         Connection(const std::shared_ptr<detail::ConnectionBase<Args...> >& connection);
@@ -112,6 +115,11 @@ bool ConnectionBase<Args...>::connected() const
 } // namespace detail
 
 template<typename ...Args>
+Signal<Args...>::Connection::Connection()
+{
+}
+
+template<typename ...Args>
 inline Signal<Args...>::Connection::Connection(const std::shared_ptr<detail::ConnectionBase<Args...> >& connection)
     : mConnection(connection)
 {
@@ -124,6 +132,16 @@ inline void Signal<Args...>::Connection::disconnect()
     if (base) {
         base->disconnect();
     }
+}
+
+template<typename ...Args>
+inline bool Signal<Args...>::Connection::connected() const
+{
+    auto base = mConnection.lock();
+    if (base) {
+        return base->connected();
+    }
+    return false;
 }
 
 template<typename ...Args>

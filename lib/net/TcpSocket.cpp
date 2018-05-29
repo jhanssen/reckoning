@@ -32,8 +32,9 @@ void TcpSocket::socketCallback(int fd, uint8_t flags)
         }
         if (flags & event::EventLoop::FdRead) {
             auto buf = read();
-            if (buf)
+            if (buf) {
                 mData.emit(std::move(buf));
+            }
         }
         if (flags & event::EventLoop::FdWrite) {
             // remove select for write

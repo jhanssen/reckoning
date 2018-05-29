@@ -28,8 +28,6 @@ private:
     thread_local static Random tRandom;
 };
 
-thread_local Random Random::tRandom;
-
 inline Random::Random()
     : mGen(mRd()), mDist(0, 255)
 {

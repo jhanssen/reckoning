@@ -78,6 +78,9 @@ static inline const char* makeReason(uint16_t status)
 inline void HttpServer::setupServer()
 {
     assert(mServer);
+
+#warning have to store the connection handle and disconnect
+
     mServer->onConnection().connect([this](std::shared_ptr<TcpSocket>&& socket) {
             auto conn = mConnections.insert(std::make_pair(std::move(socket), Connection()));
             if (!conn.second) {
@@ -85,6 +88,7 @@ inline void HttpServer::setupServer()
                 Log(Log::Error) << "Connection already exists?";
                 return;
             }
+
             auto& s = conn.first->first;
             auto& c = conn.first->second;
             c.waitFor.onData().connect([this, conn](std::shared_ptr<buffer::Buffer>&& buffer, size_t where) {
@@ -207,6 +211,8 @@ inline void HttpServer::setupServer()
                     // body data will be emitted by the request (see Request::finalize())
                     auto& c = conn.first->second;
                     c.waitFor.onData().disconnect();
+                    c.onSocketData.disconnect();
+                    c.onSocketState.disconnect();
 
                     // emit our request
                     req->finalize();
@@ -226,11 +232,16 @@ inline void HttpServer::setupServer()
                         reqcopy->mEnd.emit();
                     }
                 });
-            s->onData().connect([conn](std::shared_ptr<buffer::Buffer>&& buffer) {
+            c.onSocketData = s->onData().connect([conn](std::shared_ptr<buffer::Buffer>&& buffer) {
                     auto& c = conn.first->second;
+                    if (!c.onSocketData.connected())
+                        return;
                     c.waitFor.feed(std::move(buffer));
                 });
-            s->onStateChanged().connect([this, conn](net::TcpSocket::State state) {
+            c.onSocketState = s->onStateChanged().connect([this, conn](net::TcpSocket::State state) {
+                    auto& c = conn.first->second;
+                    if (!c.onSocketState.connected())
+                        return;
                     if (state == net::TcpSocket::Closed || state == net::TcpSocket::Error) {
                         mConnections.erase(conn.first);
                     }
@@ -302,7 +313,9 @@ void HttpServer::Request::write(Response&& response)
 
 void HttpServer::Request::finalize()
 {
-    mSocket->onData().connect([this](std::shared_ptr<buffer::Buffer>&& buffer) {
+    mOnSocketData = mSocket->onData().connect([this](std::shared_ptr<buffer::Buffer>&& buffer) {
+            if (!mOnSocketData.connected())
+                return;
             mContentReceived += buffer->size();
             if (mContentReceived > mContentLength) {
                 // bad
@@ -314,9 +327,17 @@ void HttpServer::Request::finalize()
                 mEnd.emit();
             }
         });
-    mSocket->onStateChanged().connect([this](TcpSocket::State state) {
+    mOnSocketState = mSocket->onStateChanged().connect([this](TcpSocket::State state) {
+            if (!mOnSocketState.connected())
+                return;
             if (state == TcpSocket::Closed || state == TcpSocket::Error) {
                 mSocket.reset();
             }
         });
+}
+
+void HttpServer::Request::neuter()
+{
+    mOnSocketData.disconnect();
+    mOnSocketState.disconnect();
 }

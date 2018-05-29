@@ -1,5 +1,5 @@
-#ifndef WEBSERVER_H
-#define WEBSERVER_H
+#ifndef HTTPSERVER_H
+#define HTTPSERVER_H
 
 #include <net/TcpServer.h>
 #include <net/HttpClient.h>
@@ -10,6 +10,8 @@
 
 namespace reckoning {
 namespace net {
+
+class WebSocketServer;
 
 class HttpServer : public std::enable_shared_from_this<HttpServer>, public util::Creatable<HttpServer>
 {
@@ -50,14 +52,18 @@ public:
         Request();
 
         void finalize();
+        void neuter();
 
     private:
         std::shared_ptr<TcpSocket> mSocket;
         event::Signal<std::shared_ptr<buffer::Buffer>&&> mBody;
         event::Signal<> mEnd, mError;
         size_t mContentLength, mContentReceived;
+        event::Signal<std::shared_ptr<buffer::Buffer>&&>::Connection mOnSocketData;
+        event::Signal<net::TcpSocket::State>::Connection mOnSocketState;
 
         friend class HttpServer;
+        friend class WebSocketServer;
     };
 
     bool listen(uint16_t port);
@@ -96,6 +102,8 @@ private:
         }
 
         buffer::Wait<5, 65536> waitFor;
+        event::Signal<std::shared_ptr<buffer::Buffer>&&>::Connection onSocketData;
+        event::Signal<net::TcpSocket::State>::Connection onSocketState;
 
     private:
         Connection(const Connection&) = delete;

@@ -138,7 +138,7 @@ void WebSocketClient::connect(const std::string& host, uint16_t port, const std:
             write();
         });
     mHttp->onBodyData().connect([this](std::shared_ptr<buffer::Buffer>&& buffer) {
-            if (mState != Upgraded)
+            if (mState != Upgraded || !wslay_event_want_read(mCtx))
                 return;
             //mData.emit(std::move(buffer));
             assert(buffer);

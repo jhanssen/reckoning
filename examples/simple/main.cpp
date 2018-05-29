@@ -6,6 +6,7 @@
 #include <net/HttpClient.h>
 #include <net/HttpServer.h>
 #include <net/WebSocketClient.h>
+#include <net/WebSocketServer.h>
 #include <string>
 
 using namespace reckoning;
@@ -147,6 +148,7 @@ int main(int argc, char** argv)
         server->listen(8998);
     */
     auto server = net::HttpServer::create();
+    /*
     server->onRequest().connect([](std::shared_ptr<net::HttpServer::Request>&& req) {
             Log(Log::Error) << "http server request" << req->query;
             req->onBody().connect([](std::shared_ptr<buffer::Buffer>&& buffer) {
@@ -165,13 +167,30 @@ int main(int argc, char** argv)
         });
     server->onError().connect([]() {
             Log(Log::Error) << "http server error";
-        });
+            });
+    */
     server->listen(8998);
+    auto wsserver = net::WebSocketServer::create(std::move(server));
+    wsserver->onConnection().connect([](std::shared_ptr<net::WebSocketServer::Connection>&& conn) {
+            Log(Log::Error) << "got ws conn";
+            auto c = std::move(conn);
+            c->onMessage().connect([](std::shared_ptr<buffer::Buffer>&& msg) {
+                    Log(Log::Info) << "ws msg" << msg->size();
+                });
+            c->onStateChanged().connect([c](net::WebSocketServer::Connection::State state) mutable {
+                    Log(Log::Info) << "ws state" << state;
+
+                    c.reset();
+                });
+        });
+    wsserver->onError().connect([]() {
+            Log(Log::Error) << "ws server error";
+        });
 
     // std::shared_ptr<buffer::Buffer> buf1, buf2;
     // auto buf3 = buffer::Buffer::concat(buf1, buf2);
 
     hey.join();
 
-    return loop->execute(10000ms);
+    return loop->execute(60000ms);
 }

@@ -14,20 +14,10 @@ static inline int listenHelper(struct sockaddr* address, socklen_t len, int back
     int fd = socket((len == sizeof(sockaddr_in) ? AF_INET : AF_INET6), SOCK_STREAM, 0);
     if (fd == -1)
         return -1;
-    int e = bind(fd, address, len);
-    if (e == -1) {
-        close(fd);
-        return -1;
-    }
-    e = listen(fd, backlog);
-    if (e == -1) {
-        close(fd);
-        return -1;
-    }
 #ifdef HAVE_NONBLOCK
     util::socket::setFlag(fd, O_NONBLOCK);
 #endif
-    int flags = 1;
+    int flags = 1, e;
 #ifdef HAVE_NOSIGPIPE
     e = ::setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&flags, sizeof(int));
     if (e == -1) {
@@ -38,6 +28,16 @@ static inline int listenHelper(struct sockaddr* address, socklen_t len, int back
     // nodelay
     flags = 1;
     e = ::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (void*)&flags, sizeof(int));
+    if (e == -1) {
+        close(fd);
+        return -1;
+    }
+    e = bind(fd, address, len);
+    if (e == -1) {
+        close(fd);
+        return -1;
+    }
+    e = listen(fd, backlog);
     if (e == -1) {
         close(fd);
         return -1;
