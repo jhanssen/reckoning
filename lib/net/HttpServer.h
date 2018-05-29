@@ -6,7 +6,7 @@
 #include <event/Signal.h>
 #include <buffer/Buffer.h>
 #include <buffer/Wait.h>
-#include <unordered_map>
+#include <map>
 
 namespace reckoning {
 namespace net {
@@ -102,7 +102,7 @@ private:
         Connection& operator=(const Connection&) = delete;
     };
 
-    std::unordered_map<std::shared_ptr<TcpSocket>, Connection> mConnections;
+    std::map<std::shared_ptr<TcpSocket>, Connection> mConnections;
     std::shared_ptr<TcpServer> mServer;
     event::Signal<std::shared_ptr<Request>&&> mRequest;
     event::Signal<> mError;
