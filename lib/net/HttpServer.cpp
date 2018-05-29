@@ -205,8 +205,8 @@ inline void HttpServer::setupServer()
 
                     // we're done with the connection from the HttpServer point of view
                     // body data will be emitted by the request (see Request::finalize())
-                    // ### TODO: check if we can reuse the connection for HTTP/1.1 keep-alive requests
-                    mConnections.erase(conn.first);
+                    auto& c = conn.first->second;
+                    c.waitFor.onData().disconnect();
 
                     // emit our request
                     req->finalize();
@@ -232,7 +232,6 @@ inline void HttpServer::setupServer()
                 });
             s->onStateChanged().connect([this, conn](net::TcpSocket::State state) {
                     if (state == net::TcpSocket::Closed || state == net::TcpSocket::Error) {
-                        Log(Log::Error) << "http conn closed";
                         mConnections.erase(conn.first);
                     }
                 });
