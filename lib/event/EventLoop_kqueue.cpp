@@ -59,16 +59,17 @@ void EventLoop::wakeup()
 
 void EventLoop::cleanup()
 {
+    int e;
     if (mFd != -1) {
-        close(mFd);
+        eintrwrap(e, close(mFd));
         mFd = -1;
     }
     if (mWakeup[0] != -1) {
-        close(mWakeup[0]);
+        eintrwrap(e, close(mWakeup[0]));
         mWakeup[0] = -1;
     }
     if (mWakeup[1] != -1) {
-        close(mWakeup[1]);
+        eintrwrap(e, close(mWakeup[1]));
         mWakeup[1] = -1;
     }
 }
@@ -220,6 +221,7 @@ int EventLoop::execute(std::chrono::milliseconds timeout)
                 ev.ident = fd;
                 ev.flags = EV_DELETE|EV_DISABLE;
                 eintrwrap(e, kevent(mFd, &ev, 1, 0, 0, 0));
+                eintrwrap(e, close(fd));
             }
             fds.clear();
         }

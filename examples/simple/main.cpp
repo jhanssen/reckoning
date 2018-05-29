@@ -2,6 +2,7 @@
 #include <event/Signal.h>
 #include <log/Log.h>
 #include <net/TcpSocket.h>
+#include <net/TcpServer.h>
 #include <net/HttpClient.h>
 #include <net/WebSocketClient.h>
 #include <string>
@@ -115,6 +116,7 @@ int main(int argc, char** argv)
     http->connect("www.google.com", 80);
     http->get(net::HttpClient::v11, "/");
     */
+    /*
     auto ws = net::WebSocketClient::create();
     ws->onStateChanged().connect([](net::WebSocketClient::State state) {
             Log(Log::Info) << "ws state" << state;
@@ -124,6 +126,23 @@ int main(int argc, char** argv)
         });
     ws->write("{\"foo\": 123}", 12);
     ws->connect("localhost", 8999, "/");
+    */
+    auto server = net::TcpServer::create();
+    server->onConnection().connect([](std::shared_ptr<net::TcpSocket>&& socket) {
+            Log(Log::Error) << "got connection";
+            auto s = std::move(socket);
+            s->onData().connect([](std::shared_ptr<buffer::Buffer>&& buffer) {
+                    Log(Log::Error) << "got socket data" << buffer->size();
+                });
+            s->onStateChanged().connect([s](net::TcpSocket::State state) mutable {
+                    if (state == net::TcpSocket::Closed || state == net::TcpSocket::Error)
+                        s.reset();
+                });
+        });
+    server->onError().connect([]() {
+            Log(Log::Error) << "tcp server error";
+        });
+    server->listen(8998);
 
     // std::shared_ptr<buffer::Buffer> buf1, buf2;
     // auto buf3 = buffer::Buffer::concat(buf1, buf2);

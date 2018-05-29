@@ -22,12 +22,10 @@ void TcpSocket::socketCallback(int fd, uint8_t flags)
 {
     assert(fd != -1);
 
-    int e;
     if (fd == mFd4) {
         // ipv4
         if (flags & event::EventLoop::FdError) {
             // badness
-            eintrwrap(e, ::close(mFd4));
             mFd4 = -1;
             mFd4Handle.remove();
             return;
@@ -53,7 +51,6 @@ void TcpSocket::socketCallback(int fd, uint8_t flags)
                         mState = Error;
                         mStateChanged.emit(Error);
                     }
-                    eintrwrap(e, ::close(mFd4));
                     mFd4 = -1;
                     mFd4Handle.remove();
                     return;
@@ -62,7 +59,6 @@ void TcpSocket::socketCallback(int fd, uint8_t flags)
                     mState = Connected;
                     mStateChanged.emit(Connected);
                     if (mFd6 != -1) {
-                        eintrwrap(e, ::close(mFd6));
                         mFd6 = -1;
                         mFd6Handle.remove();
                     }
@@ -76,7 +72,6 @@ void TcpSocket::socketCallback(int fd, uint8_t flags)
         // ipv6
         if (flags & event::EventLoop::FdError) {
             // badness
-            eintrwrap(e, ::close(mFd6));
             mFd6 = -1;
             mFd6Handle.remove();
             return;
@@ -102,7 +97,6 @@ void TcpSocket::socketCallback(int fd, uint8_t flags)
                         mState = Error;
                         mStateChanged.emit(Error);
                     }
-                    eintrwrap(e, ::close(mFd6));
                     mFd6 = -1;
                     mFd6Handle.remove();
                     return;
@@ -111,7 +105,6 @@ void TcpSocket::socketCallback(int fd, uint8_t flags)
                     mState = Connected;
                     mStateChanged.emit(Connected);
                     if (mFd4 != -1) {
-                        eintrwrap(e, ::close(mFd4));
                         mFd4 = -1;
                         mFd4Handle.remove();
                     }
@@ -182,7 +175,6 @@ void TcpSocket::connect(const Resolver::Response::IPv4& ip, uint16_t port)
         mStateChanged.emit(Connected);
         // if we have a pending IPv6 connect, close it
         if (mFd6 != -1) {
-            eintrwrap(e, ::close(mFd6));
             mFd6 = -1;
             mFd6Handle.remove();
         }
@@ -198,7 +190,6 @@ void TcpSocket::connect(const Resolver::Response::IPv4& ip, uint16_t port)
             mState = Error;
             mStateChanged.emit(Error);
         }
-        eintrwrap(e, ::close(mFd4));
         mFd4 = -1;
         mFd4Handle.remove();
     }
@@ -232,7 +223,6 @@ void TcpSocket::connect(const Resolver::Response::IPv6& ip, uint16_t port)
         mStateChanged.emit(Connected);
         // if we have a pending IPv4 connect, close it
         if (mFd4 != -1) {
-            eintrwrap(e, ::close(mFd4));
             mFd4 = -1;
             mFd4Handle.remove();
         }
@@ -248,22 +238,36 @@ void TcpSocket::connect(const Resolver::Response::IPv6& ip, uint16_t port)
             mState = Error;
             mStateChanged.emit(Error);
         }
-        eintrwrap(e, ::close(mFd6));
         mFd6 = -1;
         mFd6Handle.remove();
     }
 }
 
+void TcpSocket::setSocket(int fd, bool ipv6)
+{
+    if (mFd6 != -1) {
+        Log(Log::Error) << "socket set on connected ipv6 socket";
+        return;
+    }
+    if (mFd4 != -1) {
+        Log(Log::Error) << "socket set on connected ipv4 socket";
+        return;
+    }
+    auto& fdes = (ipv6 ? mFd6 : mFd4);
+    auto& handle = (ipv6 ? mFd6Handle : mFd4Handle);
+    fdes = fd;
+    mState = Connected;
+    handle = event::EventLoop::loop()->fd(fdes, event::EventLoop::FdRead,
+                                          std::bind(&TcpSocket::socketCallback, this, std::placeholders::_1, std::placeholders::_2));
+}
+
 void TcpSocket::close()
 {
-    int e;
     if (mFd4 != -1) {
-        eintrwrap(e, ::close(mFd4));
         mFd4 = -1;
         mFd4Handle.remove();
     }
     if (mFd6 != -1) {
-        eintrwrap(e, ::close(mFd6));
         mFd6 = -1;
         mFd6Handle.remove();
     }

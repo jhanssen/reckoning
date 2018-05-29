@@ -12,6 +12,8 @@
 namespace reckoning {
 namespace net {
 
+class TcpServer;
+
 class TcpSocket : public std::enable_shared_from_this<TcpSocket>, public util::Creatable<TcpSocket>
 {
 public:
@@ -50,6 +52,8 @@ private:
     void processWrite(int fd);
     std::shared_ptr<buffer::Buffer> read(size_t bytes = BufferSize);
 
+    void setSocket(int fd, bool ipv6);
+
 private:
     int mFd4, mFd6;
     size_t mWriteOffset;
@@ -59,6 +63,8 @@ private:
     event::Signal<State> mStateChanged;
     event::Signal<std::shared_ptr<buffer::Buffer>&&> mData;
     State mState;
+
+    friend class TcpServer;
 };
 
 inline event::Signal<TcpSocket::State>& TcpSocket::onStateChanged()
