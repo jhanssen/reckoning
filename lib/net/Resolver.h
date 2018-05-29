@@ -2,12 +2,12 @@
 #define RESOLVER_H
 
 #include <event/Signal.h>
+#include <net/IPAddress.h>
 #include <mutex>
 #include <thread>
 #include <condition_variable>
 #include <string>
 #include <vector>
-#include <netinet/in.h>
 
 namespace reckoning {
 namespace net {
@@ -23,30 +23,6 @@ public:
         Response(const std::string& hostname);
 
         const std::string& hostname() const;
-
-        class IPv4
-        {
-        public:
-            IPv4(const in_addr& in);
-
-            const in_addr& ip() const;
-            std::string name() const;
-
-        private:
-            in_addr mIp;
-        };
-
-        class IPv6
-        {
-        public:
-            IPv6(const in6_addr& in);
-
-            const in6_addr& ip() const;
-            std::string name() const;
-
-        private:
-            in6_addr mIp;
-        };
 
         event::Signal<IPv4&&>& onIPv4();
         event::Signal<IPv6&&>& onIPv6();
@@ -84,37 +60,17 @@ inline Resolver::Response::Response(const std::string& hostname)
 {
 }
 
-inline Resolver::Response::IPv4::IPv4(const in_addr& in)
-{
-    mIp = in;
-}
-
-inline const in_addr& Resolver::Response::IPv4::ip() const
-{
-    return mIp;
-}
-
-inline Resolver::Response::IPv6::IPv6(const in6_addr& in)
-{
-    mIp = in;
-}
-
-inline const in6_addr& Resolver::Response::IPv6::ip() const
-{
-    return mIp;
-}
-
 inline const std::string& Resolver::Response::hostname() const
 {
     return mHostname;
 }
 
-inline event::Signal<Resolver::Response::IPv4&&>& Resolver::Response::onIPv4()
+inline event::Signal<IPv4&&>& Resolver::Response::onIPv4()
 {
     return mIPv4;
 }
 
-inline event::Signal<Resolver::Response::IPv6&&>& Resolver::Response::onIPv6()
+inline event::Signal<IPv6&&>& Resolver::Response::onIPv6()
 {
     return mIPv6;
 }

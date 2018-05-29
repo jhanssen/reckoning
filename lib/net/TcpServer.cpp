@@ -96,7 +96,7 @@ bool TcpServer::listen(uint16_t port)
     return true;
 }
 
-bool TcpServer::listen(const Resolver::Response::IPv4& ip, uint16_t port)
+bool TcpServer::listen(const IPv4& ip, uint16_t port)
 {
     sockaddr_in addr;
     memset(&addr, '\0', sizeof(sockaddr_in));
@@ -114,7 +114,7 @@ bool TcpServer::listen(const Resolver::Response::IPv4& ip, uint16_t port)
     return true;
 }
 
-bool TcpServer::listen(const Resolver::Response::IPv6& ip, uint16_t port)
+bool TcpServer::listen(const IPv6& ip, uint16_t port)
 {
     sockaddr_in6 addr;
     memset(&addr, '\0', sizeof(sockaddr_in));

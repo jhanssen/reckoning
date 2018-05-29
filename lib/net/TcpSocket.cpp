@@ -122,13 +122,13 @@ void TcpSocket::connect(const std::string& host, uint16_t port)
     std::weak_ptr<TcpSocket> weak = shared_from_this();
 
     mResolver = std::make_shared<Resolver::Response>(host);
-    mResolver->onIPv4().connect([weak, port](Resolver::Response::IPv4&& ip) {
+    mResolver->onIPv4().connect([weak, port](IPv4&& ip) {
             //Log(Log::Info) << "resolved to" << ip.name();
             if (auto socket = weak.lock()) {
                 socket->connect(ip, port);
             }
         });
-    mResolver->onIPv6().connect([weak, port](Resolver::Response::IPv6&& ip) {
+    mResolver->onIPv6().connect([weak, port](IPv6&& ip) {
             // Log(Log::Info) << "resolved to" << ip.name();
             if (auto socket = weak.lock()) {
                 socket->connect(ip, port);
@@ -147,7 +147,7 @@ void TcpSocket::connect(const std::string& host, uint16_t port)
     Resolver::resolver().startRequest(mResolver);
 }
 
-void TcpSocket::connect(const Resolver::Response::IPv4& ip, uint16_t port)
+void TcpSocket::connect(const IPv4& ip, uint16_t port)
 {
     if (mFd4 != -1 || mState == Connected) {
         return;
@@ -195,7 +195,7 @@ void TcpSocket::connect(const Resolver::Response::IPv4& ip, uint16_t port)
     }
 }
 
-void TcpSocket::connect(const Resolver::Response::IPv6& ip, uint16_t port)
+void TcpSocket::connect(const IPv6& ip, uint16_t port)
 {
     if (mFd6 != -1 || mState == Connected) {
         return;

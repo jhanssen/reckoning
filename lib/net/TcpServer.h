@@ -4,6 +4,7 @@
 #include <event/EventLoop.h>
 #include <event/Signal.h>
 #include <net/Resolver.h>
+#include <net/IPAddress.h>
 #include <net/TcpSocket.h>
 #include <buffer/Buffer.h>
 #include <util/Creatable.h>
@@ -19,8 +20,8 @@ public:
     ~TcpServer();
 
     bool listen(uint16_t port);
-    bool listen(const Resolver::Response::IPv4& ip, uint16_t port);
-    bool listen(const Resolver::Response::IPv6& ip, uint16_t port);
+    bool listen(const IPv4& ip, uint16_t port);
+    bool listen(const IPv6& ip, uint16_t port);
 
     bool isListening() const;
 

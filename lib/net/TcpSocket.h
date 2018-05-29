@@ -4,6 +4,7 @@
 #include <event/EventLoop.h>
 #include <event/Signal.h>
 #include <net/Resolver.h>
+#include <net/IPAddress.h>
 #include <buffer/Buffer.h>
 #include <util/Creatable.h>
 #include <memory>
@@ -22,8 +23,8 @@ public:
     ~TcpSocket();
 
     void connect(const std::string& host, uint16_t port);
-    void connect(const Resolver::Response::IPv4& ip, uint16_t port);
-    void connect(const Resolver::Response::IPv6& ip, uint16_t port);
+    void connect(const IPv4& ip, uint16_t port);
+    void connect(const IPv6& ip, uint16_t port);
     void close();
 
     void write(std::shared_ptr<buffer::Buffer>&& buffer);

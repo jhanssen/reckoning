@@ -2,7 +2,6 @@
 #include <event/EventLoop.h>
 #include <log/Log.h>
 #include <ares.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 
@@ -26,11 +25,11 @@ Resolver::Resolver()
                     //ares_inet_ntop(host->h_addrtype, *p, addr_buf, sizeof(addr_buf));
                     switch (host->h_addrtype) {
                     case AF_INET: {
-                        Resolver::Response::IPv4 ipv4(*reinterpret_cast<in_addr*>(*p));
+                        IPv4 ipv4(*reinterpret_cast<in_addr*>(*p));
                         response->mIPv4.emit(std::move(ipv4));
                         break; }
                     case AF_INET6: {
-                        Resolver::Response::IPv6 ipv6(*reinterpret_cast<in6_addr*>(*p));
+                        IPv6 ipv6(*reinterpret_cast<in6_addr*>(*p));
                         response->mIPv6.emit(std::move(ipv6));
                         break; }
                     default:
@@ -115,18 +114,4 @@ void Resolver::shutdown()
         mStopped = true;
     }
     mThread.join();
-}
-
-std::string Resolver::Response::IPv4::name() const
-{
-    char addrbuf[16];
-    ares_inet_ntop(AF_INET, &mIp, addrbuf, sizeof(addrbuf));
-    return addrbuf;
-}
-
-std::string Resolver::Response::IPv6::name() const
-{
-    char addrbuf[46];
-    ares_inet_ntop(AF_INET6, &mIp, addrbuf, sizeof(addrbuf));
-    return addrbuf;
 }
