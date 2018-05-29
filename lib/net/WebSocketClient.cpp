@@ -145,6 +145,8 @@ void WebSocketClient::connect(const std::string& host, uint16_t port, const std:
             mReadBuffers.push(std::move(buffer));
             while (!mReadBuffers.empty()) {
                 wslay_event_recv(mCtx);
+                if (!wslay_event_want_read(mCtx))
+                    mReadBuffers = {};
             }
         });
     mHttp->onStateChanged().connect([this](HttpClient::State state) {

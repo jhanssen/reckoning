@@ -168,6 +168,8 @@ void WebSocketServer::Connection::setup()
             mReadBuffers.push(std::move(buffer));
             while (!mReadBuffers.empty()) {
                 wslay_event_recv(mCtx);
+                if (!wslay_event_want_read(mCtx))
+                    mReadBuffers = {};
             }
         });
     mSocket->onStateChanged().connect([this](TcpSocket::State state) {
