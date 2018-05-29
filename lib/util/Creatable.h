@@ -1,6 +1,8 @@
 #ifndef CREATABLE_H
 #define CREATABLE_H
 
+#include <memory>
+
 namespace reckoning {
 namespace util {
 

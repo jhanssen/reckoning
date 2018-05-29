@@ -2,13 +2,14 @@
 #define EVENTLOOP_H
 
 #include <config.h>
+#include <util/Creatable.h>
 #include <type_traits>
 #include <thread>
 #include <memory>
 #include <vector>
 #include <chrono>
-#include <event/Signal.h>
-#include <util/Creatable.h>
+#include <mutex>
+#include <functional>
 
 #ifdef HAVE_KQUEUE
 #  include <sys/types.h>

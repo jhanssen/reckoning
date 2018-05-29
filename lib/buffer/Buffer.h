@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <cassert>
+#include <string.h>
 #include <util/Creatable.h>
 
 namespace reckoning {

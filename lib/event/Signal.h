@@ -3,6 +3,7 @@
 
 #include <config.h>
 #include <util/SpinLock.h>
+#include <event/EventLoop.h>
 #include <cassert>
 #include <memory>
 #include <functional>
@@ -16,9 +17,6 @@ using is_invocable_r = __invokable_r<_Ret, _Fp, _Args...>;
 
 namespace reckoning {
 namespace event {
-
-class EventLoop;
-std::shared_ptr<EventLoop> eventLoop();
 
 template<typename ...Args>
 class Signal;
@@ -211,7 +209,7 @@ Signal<Args...>::connect(T&& func)
     util::SpinLocker locker(mLock);
 
     auto base = std::make_shared<detail::ConnectionBase<Args...> >();
-    base->mLoop = eventLoop();
+    base->mLoop = EventLoop::loop();
     base->mFunction = std::forward<T>(func);
     mConnections.push_back(base);
     return Connection(base);

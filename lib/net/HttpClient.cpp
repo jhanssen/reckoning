@@ -65,7 +65,7 @@ inline bool HttpClient::parseBody(std::shared_ptr<buffer::Buffer>&& body, size_t
     size_t rem = mBodyBuffer->size();
     for (;;) {
         // find our newline
-        char* eol = strnstr(start, "\r\n", rem);
+        char* eol = static_cast<char*>(memmem(start, rem, "\r\n", 2));
         if (!eol) {
             // we done
             return true;
@@ -215,7 +215,7 @@ void HttpClient::connect(const std::string& host, uint16_t port)
 
                     buf = mHeaderBuffer;
                 }
-                char* end = strnstr(reinterpret_cast<char*>(buf->data()), "\r\n\r\n", buf->size());
+                char* end = static_cast<char*>(memmem(buf->data(), buf->size(), "\r\n\r\n", 4));
                 if (!end)
                     return;
                 end += 4;
@@ -225,7 +225,7 @@ void HttpClient::connect(const std::string& host, uint16_t port)
                 char* cur = reinterpret_cast<char*>(buf->data());
                 if (cur < end - 4) {
                     // parse status line
-                    char* eol = strnstr(cur, "\r\n", end - cur);
+                    char* eol = static_cast<char*>(memmem(cur, end - cur, "\r\n", 2));
                     // find two spaces
                     char* sp1 = reinterpret_cast<char*>(memchr(cur, ' ', end - cur));
                     if (!sp1) {
@@ -258,8 +258,8 @@ void HttpClient::connect(const std::string& host, uint16_t port)
                 }
                 while (cur < end - 4) {
                     // find eol and eq
-                    char* eol = strnstr(cur, "\r\n", end - cur);
-                    char* sep = strnstr(cur, ":", end - cur);
+                    char* eol = static_cast<char*>(memmem(cur, end - cur, "\r\n", 2));
+                    char* sep = static_cast<char*>(memchr(cur, ':', end - cur));
                     char* vs = (!sep || sep > eol) ? nullptr : skipSpace(sep + 1);
                     if (!vs) {
                         // take the whole line as key

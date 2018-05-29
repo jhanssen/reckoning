@@ -1,6 +1,7 @@
 #include "HttpServer.h"
 #include <log/Log.h>
 #include <buffer/Builder.h>
+#include <string.h>
 
 using namespace reckoning;
 using namespace reckoning::net;
@@ -114,7 +115,7 @@ inline void HttpServer::setupServer()
                     if (cur < end - 4) {
                         // parse request line
                         // METHOD SP QUERY SP VERSION
-                        char* eol = strnstr(cur, "\r\n", end - cur);
+                        char* eol = static_cast<char*>(memmem(cur, end - cur, "\r\n", 2));
 
                         auto malformed = [&]() {
                             log::Log(log::Log::Error) << "malformed http request line" << std::string(cur, eol - cur);
@@ -173,8 +174,8 @@ inline void HttpServer::setupServer()
                     }
                     while (cur < end - 4) {
                         // find eol and eq
-                        char* eol = strnstr(cur, "\r\n", end - cur);
-                        char* sep = strnstr(cur, ":", end - cur);
+                        char* eol = static_cast<char*>(memmem(cur, end - cur, "\r\n", 2));
+                        char* sep = static_cast<char*>(memchr(cur, ':', end - cur));
                         char* vs = (!sep || sep > eol) ? nullptr : skipSpace(sep + 1);
                         if (!vs) {
                             // take the whole line as key

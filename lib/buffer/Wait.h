@@ -79,7 +79,7 @@ inline void Wait<NumberOfBuffers, MaxBufferSize>::feed(std::shared_ptr<Buffer>&&
     if (!mBuffer) {
         // do we have what we're looking for right here?
         if (buffer->size() >= mNeedle.size()) {
-            char* found = strnstr(reinterpret_cast<char*>(buffer->data()), &mNeedle[0], buffer->size());
+            char* found = static_cast<char*>(memmem(buffer->data(), buffer->size(), &mNeedle[0], mNeedle.size()));
             if (found) {
                 // yes
                 mData.emit(std::move(buffer), found - reinterpret_cast<char*>(buffer->data()));
@@ -110,7 +110,7 @@ inline void Wait<NumberOfBuffers, MaxBufferSize>::feed(std::shared_ptr<Buffer>&&
 
         // check if we have what we're looking for
         if (mBuffer->size() >= mNeedle.size()) {
-            char* found = strnstr(reinterpret_cast<char*>(mBuffer->data()), &mNeedle[0], mBuffer->size());
+            char* found = static_cast<char*>(memmem(mBuffer->data(), mBuffer->size(), &mNeedle[0], mNeedle.size()));
             if (found) {
                 // yes
                 mData.emit(std::move(mBuffer), found - reinterpret_cast<char*>(mBuffer->data()));

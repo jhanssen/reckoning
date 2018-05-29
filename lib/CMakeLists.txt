@@ -14,4 +14,4 @@ include_sources(SOURCES net)
 include_sources(SOURCES util)
 
 add_library(reckoning SHARED ${SOURCES})
-target_link_libraries(reckoning c-ares::cares_shared OpenSSL::Crypto wslay)
+target_link_libraries(reckoning c-ares::cares_shared OpenSSL::Crypto wslay_shared pthread)
