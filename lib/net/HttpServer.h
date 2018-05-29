@@ -140,7 +140,6 @@ inline void HttpServer::Request::close()
 {
     if (!mSocket)
         return;
-    mSocket->close();
     mSocket.reset();
 }
 
