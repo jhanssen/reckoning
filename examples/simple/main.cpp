@@ -4,6 +4,7 @@
 #include <net/TcpSocket.h>
 #include <net/TcpServer.h>
 #include <net/HttpClient.h>
+#include <net/HttpServer.h>
 #include <net/WebSocketClient.h>
 #include <string>
 
@@ -127,6 +128,7 @@ int main(int argc, char** argv)
     ws->write("{\"foo\": 123}", 12);
     ws->connect("localhost", 8999, "/");
     */
+    /*
     auto server = net::TcpServer::create();
     server->onConnection().connect([](std::shared_ptr<net::TcpSocket>&& socket) {
             Log(Log::Error) << "got connection";
@@ -141,6 +143,28 @@ int main(int argc, char** argv)
         });
     server->onError().connect([]() {
             Log(Log::Error) << "tcp server error";
+        });
+        server->listen(8998);
+    */
+    auto server = net::HttpServer::create();
+    server->onRequest().connect([](std::shared_ptr<net::HttpServer::Request>&& req) {
+            Log(Log::Error) << "http server request" << req->query;
+            req->onBody().connect([](std::shared_ptr<buffer::Buffer>&& buffer) {
+                    Log(Log::Info) << "got data from request" << buffer->size();
+                });
+            req->onEnd().connect([req]() mutable {
+                    Log(Log::Info) << "request end";
+                    net::HttpServer::Response response;
+                    response.status = 200;
+                    response.reason = "Ok";
+                    response.headers.add("Content-Length", "13");
+                    req->write(std::move(response));
+                    req->write("Hello world\r\n", 13);
+                    req.reset();
+                });
+        });
+    server->onError().connect([]() {
+            Log(Log::Error) << "http server error";
         });
     server->listen(8998);
 

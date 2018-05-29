@@ -27,7 +27,7 @@ public:
 
     struct Response
     {
-        uint8_t status;
+        uint16_t status;
         std::string reason;
         Headers headers;
     };

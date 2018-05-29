@@ -48,7 +48,10 @@ class Signal
 {
 public:
     Signal();
+    Signal(Signal&& other);
     ~Signal();
+
+    Signal& operator=(Signal&& other);
 
     class Connection
     {
@@ -70,6 +73,9 @@ public:
     void emit(Args&& ...args);
 
 private:
+    Signal(const Signal&) = delete;
+    Signal& operator=(const Signal&) = delete;
+
     std::vector<std::shared_ptr<detail::ConnectionBase<Args...> > > mConnections;
     util::SpinLock mLock;
 };
@@ -126,8 +132,22 @@ inline Signal<Args...>::Signal()
 }
 
 template<typename ...Args>
+inline Signal<Args...>::Signal(Signal&& other)
+    : mConnections(std::move(other.mConnections)), mLock(std::move(other.mLock))
+{
+}
+
+template<typename ...Args>
 inline Signal<Args...>::~Signal()
 {
+}
+
+template<typename ...Args>
+inline Signal<Args...>& Signal<Args...>::operator=(Signal&& other)
+{
+    mConnections = std::move(other.mConnections);
+    mLock = std::move(other.mLock);
+    return *this;
 }
 
 template<typename ...Args>

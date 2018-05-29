@@ -59,12 +59,12 @@ inline bool TcpServer::isListening() const
     return mFd != -1;
 }
 
-event::Signal<std::shared_ptr<TcpSocket>&&>& TcpServer::onConnection()
+inline event::Signal<std::shared_ptr<TcpSocket>&&>& TcpServer::onConnection()
 {
     return mConnection;
 }
 
-event::Signal<>& TcpServer::onError()
+inline event::Signal<>& TcpServer::onError()
 {
     return mError;
 }
