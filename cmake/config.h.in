@@ -3,6 +3,7 @@
 
 #cmakedefine HAVE_KQUEUE
 #cmakedefine HAVE_KEVENT64
+#cmakedefine HAVE_EPOLL
 #cmakedefine HAVE_INVOCABLE_R
 #cmakedefine HAVE_INVOKABLE_R
 #cmakedefine HAVE_NONBLOCK

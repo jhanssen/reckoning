@@ -23,6 +23,14 @@ check_c_source_compiles("
     HAVE_KQUEUE)
 
 check_c_source_compiles("
+    #include <sys/epoll.h>
+    int main(int argc, char** argv) {
+        int fd = epoll_create1(0);
+        return 0;
+    }"
+    HAVE_EPOLL)
+
+check_c_source_compiles("
     #include <fcntl.h>
     int main(int argc, char** argv) {
         int e = fcntl(0, F_SETFL, O_NONBLOCK);
