@@ -1,4 +1,4 @@
-#include <event/EventLoop.h>
+#include <event/Loop.h>
 #include <event/Signal.h>
 #include <log/Log.h>
 #include <net/TcpSocket.h>
@@ -54,7 +54,7 @@ int main(int argc, char** argv)
 {
     Log::initialize(Log::Debug);
 
-    std::shared_ptr<event::EventLoop> loop = event::EventLoop::create();
+    std::shared_ptr<event::Loop> loop = event::Loop::create();
     loop->init();
 
     auto conn = sig.connect([](int i, Test&& t) {
@@ -70,8 +70,8 @@ int main(int argc, char** argv)
             sig.emit(20, std::move(slot2));
         });
 
-    std::shared_ptr<event::EventLoop::Timer> timer;
-    timer = loop->timer(1000ms, event::EventLoop::Interval, [&timer]() {
+    std::shared_ptr<event::Loop::Timer> timer;
+    timer = loop->timer(1000ms, event::Loop::Interval, [&timer]() {
             static int cnt = 0;
             Log(Log::Info) << "yes" << ++cnt;
             if (cnt == 5)

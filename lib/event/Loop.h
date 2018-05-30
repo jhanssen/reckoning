@@ -23,10 +23,10 @@
 namespace reckoning {
 namespace event {
 
-class EventLoop : public std::enable_shared_from_this<EventLoop>, public util::Creatable<EventLoop>
+class Loop : public std::enable_shared_from_this<Loop>, public util::Creatable<Loop>
 {
 public:
-    ~EventLoop();
+    ~Loop();
 
     void init();
 
@@ -42,7 +42,7 @@ public:
     protected:
         virtual void execute() = 0;
 
-        friend class EventLoop;
+        friend class Loop;
     };
 
     template<typename T, typename ...Args>
@@ -68,7 +68,7 @@ public:
         std::chrono::time_point<std::chrono::steady_clock> next() const { return mNext; }
 
         TimerFlag flag() const { return mFlag; }
-        std::shared_ptr<EventLoop> loop() const { return mLoop.lock(); }
+        std::shared_ptr<Loop> loop() const { return mLoop.lock(); }
 
         void stop();
 
@@ -79,9 +79,9 @@ public:
         std::chrono::milliseconds mTimeout;
         std::chrono::time_point<std::chrono::steady_clock> mNext;
         TimerFlag mFlag;
-        std::weak_ptr<EventLoop> mLoop;
+        std::weak_ptr<Loop> mLoop;
 
-        friend class EventLoop;
+        friend class Loop;
     };
 
     template<typename T, typename ...Args>
@@ -112,9 +112,9 @@ public:
         FD& operator=(const FD&) = delete;
 
         int mFd;
-        std::weak_ptr<EventLoop> mLoop;
+        std::weak_ptr<Loop> mLoop;
 
-        friend class EventLoop;
+        friend class Loop;
     };
 
     enum FdFlag { FdError = 0x1, FdRead = 0x2, FdWrite = 0x4 };
@@ -125,10 +125,10 @@ public:
     int execute(std::chrono::milliseconds timeout = std::chrono::milliseconds{-1});
     void exit(int status = 0);
 
-    static std::shared_ptr<EventLoop> loop();
+    static std::shared_ptr<Loop> loop();
 
 protected:
-    EventLoop();
+    Loop();
 
 private:
     void destroy();
@@ -152,19 +152,19 @@ private:
     int mStatus;
     bool mStopped;
 
-    thread_local static std::weak_ptr<EventLoop> tLoop;
+    thread_local static std::weak_ptr<Loop> tLoop;
 
     friend class Timer;
 };
 
-inline bool EventLoop::isLoopThread() const
+inline bool Loop::isLoopThread() const
 {
     return mThread == std::this_thread::get_id();
 }
 
-inline void EventLoop::Timer::stop()
+inline void Loop::Timer::stop()
 {
-    std::shared_ptr<EventLoop> loop = mLoop.lock();
+    std::shared_ptr<Loop> loop = mLoop.lock();
     if (!loop)
         return;
 
@@ -183,7 +183,7 @@ inline void EventLoop::Timer::stop()
 
 namespace detail {
 template<typename T, typename ...Args>
-class ArgsEvent : public EventLoop::Event
+class ArgsEvent : public Loop::Event
 {
 public:
     ArgsEvent(T&& f, Args&& ...a) : func(std::forward<T>(f)), args(std::make_tuple(std::forward<Args>(a)...)) { }
@@ -203,10 +203,10 @@ private:
 };
 
 template<typename T, typename ...Args>
-class ArgsTimer : public EventLoop::Timer
+class ArgsTimer : public Loop::Timer
 {
 public:
-    ArgsTimer(std::chrono::milliseconds timeout, EventLoop::TimerFlag flag, T&& f, Args&& ...a)
+    ArgsTimer(std::chrono::milliseconds timeout, Loop::TimerFlag flag, T&& f, Args&& ...a)
         : Timer(timeout, flag), func(std::forward<T>(f)), args(std::make_tuple(std::forward<Args>(a)...))
     { }
     ArgsTimer(ArgsTimer<T, Args...>&& other) : func(std::move(other.func)), args(std::move(other.args)) { }
@@ -227,7 +227,7 @@ private:
 
 template<typename T, typename ...Args>
 inline typename std::enable_if<std::is_invocable_r<void, T, Args...>::value, void>::type
-EventLoop::send(T&& func, Args&& ...args)
+Loop::send(T&& func, Args&& ...args)
 {
     if (mThread == std::this_thread::get_id()) {
         func(std::forward<Args>(args)...);
@@ -237,8 +237,8 @@ EventLoop::send(T&& func, Args&& ...args)
     }
 }
 
-template<typename T, typename std::enable_if<std::is_base_of<EventLoop::Event, T>::value, T>::type*>
-inline void EventLoop::send(T&& event)
+template<typename T, typename std::enable_if<std::is_base_of<Loop::Event, T>::value, T>::type*>
+inline void Loop::send(T&& event)
 {
     if (mThread == std::this_thread::get_id()) {
         event.execute();
@@ -247,7 +247,7 @@ inline void EventLoop::send(T&& event)
     }
 }
 
-inline void EventLoop::send(std::unique_ptr<Event>&& event)
+inline void Loop::send(std::unique_ptr<Event>&& event)
 {
     if (mThread == std::this_thread::get_id()) {
         event->execute();
@@ -256,7 +256,7 @@ inline void EventLoop::send(std::unique_ptr<Event>&& event)
     }
 }
 
-inline void EventLoop::post(std::unique_ptr<Event>&& event)
+inline void Loop::post(std::unique_ptr<Event>&& event)
 {
     std::lock_guard<std::mutex> locker(mMutex);
     mEvents.push_back(std::forward<std::unique_ptr<Event> >(event));
@@ -264,8 +264,8 @@ inline void EventLoop::post(std::unique_ptr<Event>&& event)
 }
 
 template<typename T, typename ...Args>
-typename std::enable_if<std::is_invocable_r<void, T, Args...>::value, std::shared_ptr<EventLoop::Timer> >::type
-EventLoop::timer(std::chrono::milliseconds timeout, T&& func, Args&& ...args)
+typename std::enable_if<std::is_invocable_r<void, T, Args...>::value, std::shared_ptr<Loop::Timer> >::type
+Loop::timer(std::chrono::milliseconds timeout, T&& func, Args&& ...args)
 {
     auto st = std::make_shared<detail::ArgsTimer<T, Args...> >(timeout, Timeout, std::forward<T>(func), std::forward<Args>(args)...);
     st->mLoop = shared_from_this();
@@ -274,8 +274,8 @@ EventLoop::timer(std::chrono::milliseconds timeout, T&& func, Args&& ...args)
 }
 
 template<typename T, typename ...Args>
-typename std::enable_if<std::is_invocable_r<void, T, Args...>::value, std::shared_ptr<EventLoop::Timer> >::type
-EventLoop::timer(std::chrono::milliseconds timeout, TimerFlag flag, T&& func, Args&& ...args)
+typename std::enable_if<std::is_invocable_r<void, T, Args...>::value, std::shared_ptr<Loop::Timer> >::type
+Loop::timer(std::chrono::milliseconds timeout, TimerFlag flag, T&& func, Args&& ...args)
 {
     auto st = std::make_shared<detail::ArgsTimer<T, Args...> >(timeout, flag, std::forward<T>(func), std::forward<Args>(args)...);
     st->mLoop = shared_from_this();
@@ -283,8 +283,8 @@ EventLoop::timer(std::chrono::milliseconds timeout, TimerFlag flag, T&& func, Ar
     return st;
 }
 
-template<typename T, typename std::enable_if<std::is_base_of<EventLoop::Timer, T>::value, T>::type*>
-inline std::shared_ptr<EventLoop::Timer> EventLoop::timer(T&& t)
+template<typename T, typename std::enable_if<std::is_base_of<Loop::Timer, T>::value, T>::type*>
+inline std::shared_ptr<Loop::Timer> Loop::timer(T&& t)
 {
     auto st = std::make_shared<Timer>(new T(std::forward<T>(t)));
     st->mLoop = shared_from_this();
@@ -292,7 +292,7 @@ inline std::shared_ptr<EventLoop::Timer> EventLoop::timer(T&& t)
     return st;
 }
 
-inline void EventLoop::timer(const std::shared_ptr<Timer>& t)
+inline void Loop::timer(const std::shared_ptr<Timer>& t)
 {
     t->mNext = std::chrono::steady_clock::now() + t->mTimeout;
     t->mLoop = shared_from_this();
@@ -310,7 +310,7 @@ inline void EventLoop::timer(const std::shared_ptr<Timer>& t)
 }
 
 template<typename T, typename std::enable_if<std::is_invocable_r<void, T, int, uint8_t>::value, T>::type*>
-inline EventLoop::FD EventLoop::fd(int fd, uint8_t flags, T&& callback)
+inline Loop::FD Loop::fd(int fd, uint8_t flags, T&& callback)
 {
     FD r;
     r.mFd = fd;
@@ -326,31 +326,31 @@ inline EventLoop::FD EventLoop::fd(int fd, uint8_t flags, T&& callback)
     return r;
 }
 
-inline void EventLoop::fd(int fd, uint8_t flags)
+inline void Loop::fd(int fd, uint8_t flags)
 {
     std::lock_guard<std::mutex> locker(mMutex);
     mUpdateFds.push_back(std::make_pair(fd, flags));
     wakeup();
 }
 
-inline EventLoop::FD::FD()
+inline Loop::FD::FD()
     : mFd(-1)
 {
 }
 
-inline EventLoop::FD::FD(FD&& other)
+inline Loop::FD::FD(FD&& other)
     : mFd(other.mFd), mLoop(std::move(other.mLoop))
 {
 }
 
-inline EventLoop::FD& EventLoop::FD::operator=(FD&& other)
+inline Loop::FD& Loop::FD::operator=(FD&& other)
 {
     mFd = other.mFd;
     mLoop = std::move(other.mLoop);
     return *this;
 }
 
-inline void EventLoop::FD::remove()
+inline void Loop::FD::remove()
 {
     auto loop = mLoop.lock();
     if (!loop)
@@ -388,7 +388,7 @@ inline void EventLoop::FD::remove()
     loop->wakeup();
 }
 
-inline std::shared_ptr<EventLoop> EventLoop::loop()
+inline std::shared_ptr<Loop> Loop::loop()
 {
     return tLoop.lock();
 }

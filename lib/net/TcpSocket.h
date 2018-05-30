@@ -1,7 +1,7 @@
 #ifndef TCPSOCKET_H
 #define TCPSOCKET_H
 
-#include <event/EventLoop.h>
+#include <event/Loop.h>
 #include <event/Signal.h>
 #include <net/Resolver.h>
 #include <net/IPAddress.h>
@@ -60,7 +60,7 @@ private:
     size_t mWriteOffset;
     std::vector<std::shared_ptr<buffer::Buffer> > mPendingWrites;
     std::shared_ptr<Resolver::Response> mResolver;
-    event::EventLoop::FD mFd4Handle, mFd6Handle;
+    event::Loop::FD mFd4Handle, mFd6Handle;
     event::Signal<State> mStateChanged;
     event::Signal<std::shared_ptr<buffer::Buffer>&&> mData;
     State mState;

@@ -1,7 +1,7 @@
-set(EVENT_SOURCES EventLoop.cpp)
+set(EVENT_SOURCES Loop.cpp)
 
 if (HAVE_KQUEUE)
-    list(APPEND EVENT_SOURCES EventLoop_kqueue.cpp)
+    list(APPEND EVENT_SOURCES Loop_kqueue.cpp)
 elseif (HAVE_EPOLL)
-    list(APPEND EVENT_SOURCES EventLoop_epoll.cpp)
+    list(APPEND EVENT_SOURCES Loop_epoll.cpp)
 endif()

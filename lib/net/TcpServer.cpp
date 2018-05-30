@@ -91,7 +91,7 @@ bool TcpServer::listen(uint16_t port)
         return false;
     }
     mIsIPv6 = false;
-    mFdHandle = event::EventLoop::loop()->fd(mFd, event::EventLoop::FdRead,
+    mFdHandle = event::Loop::loop()->fd(mFd, event::Loop::FdRead,
                                              std::bind(&TcpServer::socketCallback, this, std::placeholders::_1, std::placeholders::_2));
     return true;
 }
@@ -109,7 +109,7 @@ bool TcpServer::listen(const IPv4& ip, uint16_t port)
         return false;
     }
     mIsIPv6 = false;
-    mFdHandle = event::EventLoop::loop()->fd(mFd, event::EventLoop::FdRead,
+    mFdHandle = event::Loop::loop()->fd(mFd, event::Loop::FdRead,
                                              std::bind(&TcpServer::socketCallback, this, std::placeholders::_1, std::placeholders::_2));
     return true;
 }
@@ -127,7 +127,7 @@ bool TcpServer::listen(const IPv6& ip, uint16_t port)
         return false;
     }
     mIsIPv6 = true;
-    mFdHandle = event::EventLoop::loop()->fd(mFd, event::EventLoop::FdRead,
+    mFdHandle = event::Loop::loop()->fd(mFd, event::Loop::FdRead,
                                              std::bind(&TcpServer::socketCallback, this, std::placeholders::_1, std::placeholders::_2));
     return true;
 }

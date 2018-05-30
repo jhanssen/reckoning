@@ -1,4 +1,4 @@
-#include "EventLoop.h"
+#include "Loop.h"
 #include <util/Socket.h>
 #include <log/Log.h>
 #include <fcntl.h>
@@ -8,21 +8,21 @@ using namespace reckoning;
 using namespace reckoning::event;
 using namespace reckoning::log;
 
-thread_local std::weak_ptr<EventLoop> EventLoop::tLoop;
+thread_local std::weak_ptr<Loop> Loop::tLoop;
 
-EventLoop::EventLoop()
+Loop::Loop()
     : mStatus(0), mStopped(false)
 {
     mThread = std::this_thread::get_id();
     //send([](int, const char*) -> void { }, 10, "123");
 }
 
-EventLoop::~EventLoop()
+Loop::~Loop()
 {
     destroy();
 }
 
-void EventLoop::commonInit()
+void Loop::commonInit()
 {
     mWakeup[0] = mWakeup[1] = -1;
     int e = pipe(mWakeup);
@@ -40,12 +40,12 @@ void EventLoop::commonInit()
 #endif
 }
 
-void EventLoop::destroy()
+void Loop::destroy()
 {
     cleanup();
 }
 
-void EventLoop::wakeup()
+void Loop::wakeup()
 {
     if (mThread == std::this_thread::get_id())
         return;
@@ -54,7 +54,7 @@ void EventLoop::wakeup()
     eintrwrap(e, write(mWakeup[1], &c, 1));
 }
 
-void EventLoop::cleanup()
+void Loop::cleanup()
 {
     int e;
     if (mFd != -1) {
@@ -71,7 +71,7 @@ void EventLoop::cleanup()
     }
 }
 
-void EventLoop::exit(int status)
+void Loop::exit(int status)
 {
     std::lock_guard<std::mutex> locker(mMutex);
     mStopped = true;

@@ -1,4 +1,4 @@
-#include "EventLoop.h"
+#include "Loop.h"
 #include "Timeval.h"
 #include <unistd.h>
 #include <errno.h>
@@ -21,7 +21,7 @@ using namespace reckoning;
 using namespace reckoning::event;
 using namespace reckoning::log;
 
-void EventLoop::init()
+void Loop::init()
 {
     tLoop = shared_from_this();
 
@@ -48,9 +48,9 @@ void EventLoop::init()
     }
 }
 
-int EventLoop::execute(std::chrono::milliseconds timeout)
+int Loop::execute(std::chrono::milliseconds timeout)
 {
-    assert(tLoop.lock() != std::shared_ptr<EventLoop>());
+    assert(tLoop.lock() != std::shared_ptr<Loop>());
 
     if (timeout != std::chrono::milliseconds{-1}) {
         timer(timeout, [this]() { exit(); });

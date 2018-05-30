@@ -1,5 +1,5 @@
 #include "Resolver.h"
-#include <event/EventLoop.h>
+#include <event/Loop.h>
 #include <log/Log.h>
 #include <ares.h>
 #include <arpa/inet.h>

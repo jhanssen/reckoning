@@ -1,7 +1,7 @@
 #ifndef TCPSERVER_H
 #define TCPSERVER_H
 
-#include <event/EventLoop.h>
+#include <event/Loop.h>
 #include <event/Signal.h>
 #include <net/Resolver.h>
 #include <net/IPAddress.h>
@@ -38,7 +38,7 @@ private:
 
 private:
     int mFd;
-    event::EventLoop::FD mFdHandle;
+    event::Loop::FD mFdHandle;
     event::Signal<std::shared_ptr<TcpSocket>&&> mConnection;
     event::Signal<> mError;
     bool mIsIPv6;

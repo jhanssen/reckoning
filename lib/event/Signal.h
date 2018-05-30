@@ -4,7 +4,7 @@
 #include <config.h>
 #include <util/SpinLock.h>
 #include <util/Invocable.h>
-#include <event/EventLoop.h>
+#include <event/Loop.h>
 #include <cassert>
 #include <memory>
 #include <functional>
@@ -28,7 +28,7 @@ public:
 
 private:
     std::function<void(typename std::decay<Args>::type...)> mFunction;
-    std::weak_ptr<EventLoop> mLoop;
+    std::weak_ptr<Loop> mLoop;
     std::atomic<bool> mConnected;
 
     friend class Signal<Args...>;
@@ -203,7 +203,7 @@ Signal<Args...>::connect(T&& func)
     util::SpinLocker locker(mLock);
 
     auto base = std::make_shared<detail::ConnectionBase<Args...> >();
-    base->mLoop = EventLoop::loop();
+    base->mLoop = Loop::loop();
     base->mFunction = std::forward<T>(func);
     mConnections.push_back(base);
     return Connection(base);

@@ -24,21 +24,21 @@ void TcpSocket::socketCallback(int fd, uint8_t flags)
 
     if (fd == mFd4) {
         // ipv4
-        if (flags & event::EventLoop::FdError) {
+        if (flags & event::Loop::FdError) {
             // badness
             mFd4 = -1;
             mFd4Handle.remove();
             return;
         }
-        if (flags & event::EventLoop::FdRead) {
+        if (flags & event::Loop::FdRead) {
             auto buf = read();
             if (buf) {
                 mData.emit(std::move(buf));
             }
         }
-        if (flags & event::EventLoop::FdWrite) {
+        if (flags & event::Loop::FdWrite) {
             // remove select for write
-            event::EventLoop::loop()->fd(fd, event::EventLoop::FdRead);
+            event::Loop::loop()->fd(fd, event::Loop::FdRead);
 
             if (mState & Connecting) {
                 // check connect status
@@ -71,20 +71,20 @@ void TcpSocket::socketCallback(int fd, uint8_t flags)
         }
     } else if (fd == mFd6) {
         // ipv6
-        if (flags & event::EventLoop::FdError) {
+        if (flags & event::Loop::FdError) {
             // badness
             mFd6 = -1;
             mFd6Handle.remove();
             return;
         }
-        if (flags & event::EventLoop::FdRead) {
+        if (flags & event::Loop::FdRead) {
             auto buf = read();
             if (buf)
                 mData.emit(std::move(buf));
         }
-        if (flags & event::EventLoop::FdWrite) {
+        if (flags & event::Loop::FdWrite) {
             // remove select for write
-            event::EventLoop::loop()->fd(fd, event::EventLoop::FdRead);
+            event::Loop::loop()->fd(fd, event::Loop::FdRead);
 
             if (mState & Connecting) {
                 // check connect status
@@ -163,7 +163,7 @@ void TcpSocket::connect(const IPv4& ip, uint16_t port)
 #ifdef HAVE_NONBLOCK
     util::socket::setFlag(mFd4, O_NONBLOCK);
 #endif
-    mFd4Handle = event::EventLoop::loop()->fd(mFd4, event::EventLoop::FdRead|event::EventLoop::FdWrite,
+    mFd4Handle = event::Loop::loop()->fd(mFd4, event::Loop::FdRead|event::Loop::FdWrite,
                                               std::bind(&TcpSocket::socketCallback, this, std::placeholders::_1, std::placeholders::_2));
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
@@ -210,7 +210,7 @@ void TcpSocket::connect(const IPv6& ip, uint16_t port)
 #ifdef HAVE_NONBLOCK
     util::socket::setFlag(mFd6, O_NONBLOCK);
 #endif
-    mFd6Handle = event::EventLoop::loop()->fd(mFd6, event::EventLoop::FdRead|event::EventLoop::FdWrite,
+    mFd6Handle = event::Loop::loop()->fd(mFd6, event::Loop::FdRead|event::Loop::FdWrite,
                                               std::bind(&TcpSocket::socketCallback, this, std::placeholders::_1, std::placeholders::_2));
     struct sockaddr_in6 addr;
     memset(&addr, 0, sizeof(sockaddr_in6));
@@ -258,7 +258,7 @@ void TcpSocket::setSocket(int fd, bool ipv6)
     auto& handle = (ipv6 ? mFd6Handle : mFd4Handle);
     fdes = fd;
     mState = Connected;
-    handle = event::EventLoop::loop()->fd(fdes, event::EventLoop::FdRead,
+    handle = event::Loop::loop()->fd(fdes, event::Loop::FdRead,
                                           std::bind(&TcpSocket::socketCallback, this, std::placeholders::_1, std::placeholders::_2));
 }
 
@@ -286,7 +286,7 @@ void TcpSocket::processWrite(int fd)
             // welp
             if (errno == EWOULDBLOCK || errno == EAGAIN) {
                 // hey, good stuff. reenable the write flag
-                event::EventLoop::loop()->fd(fd, event::EventLoop::FdRead|event::EventLoop::FdWrite);
+                event::Loop::loop()->fd(fd, event::Loop::FdRead|event::Loop::FdWrite);
             } else {
                 Log(Log::Error) << "failed to write to fd" << fd << errno;
 
