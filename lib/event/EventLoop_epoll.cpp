@@ -8,12 +8,14 @@
 #include <util/Socket.h>
 #include <net/Resolver.h>
 
+#ifdef __linux__
 #include <linux/version.h>
 #if !defined EPOLLRDHUP && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,17)
 // EPOLLRDHUP exists in the kernel since 2.6.17. Just define it here:
 // (see: https://sourceware.org/bugzilla/show_bug.cgi?id=5040)
 #define EPOLLRDHUP 0x2000
 #endif
+#endif // __linux__
 
 using namespace reckoning;
 using namespace reckoning::event;
