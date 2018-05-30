@@ -12,10 +12,12 @@
 #include <mutex>
 #include <functional>
 
-#ifdef HAVE_KQUEUE
+#if defined(HAVE_KQUEUE)
 #  include <sys/types.h>
 #  include <sys/event.h>
 #  include <sys/time.h>
+#elif defined(HAVE_EPOLL)
+#  include <sys/epoll.h>
 #endif
 
 namespace reckoning {
