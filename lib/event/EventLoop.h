@@ -135,6 +135,8 @@ private:
     void wakeup();
     void cleanup();
 
+    void commonInit();
+
 private:
 #ifdef HAVE_KQUEUE
     int mFd;
