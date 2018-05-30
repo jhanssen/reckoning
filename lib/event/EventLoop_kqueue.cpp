@@ -23,6 +23,13 @@ void EventLoop::init()
     }
 
     commonInit();
+
+    struct kevent ev;
+    memset(&ev, 0, sizeof(struct kevent));
+    ev.ident = mWakeup[0];
+    ev.flags = EV_ADD|EV_ENABLE;
+    ev.filter = EVFILT_READ;
+    eintrwrap(e, kevent(mFd, &ev, 1, 0, 0, 0));
 }
 
 int EventLoop::execute(std::chrono::milliseconds timeout)
