@@ -3,17 +3,11 @@
 
 #include <config.h>
 #include <util/SpinLock.h>
+#include <util/Invocable.h>
 #include <event/EventLoop.h>
 #include <cassert>
 #include <memory>
 #include <functional>
-
-#if !defined(HAVE_INVOCABLE_R) && defined(HAVE_INVOKABLE_R)
-namespace std {
-template <class _Ret, class _Fp, class ..._Args>
-using is_invocable_r = __invokable_r<_Ret, _Fp, _Args...>;
-}
-#endif
 
 namespace reckoning {
 namespace event {

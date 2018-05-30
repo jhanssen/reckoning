@@ -3,6 +3,7 @@
 
 #include <config.h>
 #include <util/Creatable.h>
+#include <util/Invocable.h>
 #include <type_traits>
 #include <thread>
 #include <memory>
