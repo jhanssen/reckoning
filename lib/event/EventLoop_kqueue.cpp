@@ -1,6 +1,7 @@
 #include "EventLoop.h"
 #include "Timeval.h"
 #include <unistd.h>
+#include <string.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <log/Log.h>
@@ -24,12 +25,18 @@ void EventLoop::init()
 
     commonInit();
 
+    int e;
     struct kevent ev;
     memset(&ev, 0, sizeof(struct kevent));
     ev.ident = mWakeup[0];
     ev.flags = EV_ADD|EV_ENABLE;
     ev.filter = EVFILT_READ;
     eintrwrap(e, kevent(mFd, &ev, 1, 0, 0, 0));
+    if (e == -1) {
+        Log(Log::Error) << "unable to add wakeup pipe to kqueue" << errno;
+        cleanup();
+        return;
+    }
 }
 
 int EventLoop::execute(std::chrono::milliseconds timeout)
@@ -209,6 +216,8 @@ int EventLoop::execute(std::chrono::milliseconds timeout)
                 kevent(mFd, &kev, 1, 0, 0, 0);
 
                 processFd(fd, FdError);
+
+                eintrwrap(e, ::close(fd));
             } else {
                 switch (filter) {
                 case EVFILT_READ:
