@@ -119,8 +119,8 @@ inline void HttpServer::setupServer()
 
                         auto malformed = [&]() {
                             log::Log(log::Log::Error) << "malformed http request line" << std::string(cur, eol - cur);
-                            mError.emit();
                             mConnections.erase(conn.first);
+                            mError.emit();
                         };
 
                         // find two spaces
