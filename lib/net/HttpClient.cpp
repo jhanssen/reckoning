@@ -34,7 +34,7 @@ inline bool HttpClient::parseBody(std::shared_ptr<buffer::Buffer>&& body, size_t
     }
     if (mChunkSize) {
         // see if this completes our chunk
-        if (mBodyBuffer->size() - mChunkPrefix + 2 >= mChunkSize) {
+        if (mBodyBuffer->size() - mChunkPrefix + 2 >= static_cast<size_t>(mChunkSize)) {
             // yes it does
             auto newBody = buffer::Pool<ChunkBufferNo, ChunkBufferSize>::pool().get(mChunkSize);
             newBody->assign(mBodyBuffer->data() + mChunkPrefix, mChunkSize);
@@ -73,7 +73,7 @@ inline bool HttpClient::parseBody(std::shared_ptr<buffer::Buffer>&& body, size_t
         // parse chunked size
         char* endptr;
         const long size = strtol(start, &endptr, 16);
-        if (endptr != eol) {
+        if (endptr != eol || size < 0) {
             // bad
             log::Log(log::Log::Error) << "failed to parse chunk size" << size << *endptr << std::string(start, eol - start);
             mState = Error;

@@ -297,7 +297,7 @@ void TcpSocket::processWrite(int fd)
             }
             return;
         } else {
-            if (e < (*it)->size() - mWriteOffset) {
+            if (static_cast<size_t>(e) < (*it)->size() - mWriteOffset) {
                 mWriteOffset += e;
             } else {
                 mWriteOffset = 0;
