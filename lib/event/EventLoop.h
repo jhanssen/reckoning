@@ -138,7 +138,7 @@ private:
     void commonInit();
 
 private:
-#ifdef HAVE_KQUEUE
+#if defined(HAVE_KQUEUE) || defined(HAVE_EPOLL)
     int mFd;
     int mWakeup[2];
 #endif
