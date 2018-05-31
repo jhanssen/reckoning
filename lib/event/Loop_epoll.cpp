@@ -53,7 +53,7 @@ int Loop::execute(std::chrono::milliseconds timeout)
     assert(tLoop.lock() != std::shared_ptr<Loop>());
 
     if (timeout != std::chrono::milliseconds{-1}) {
-        timer(timeout, [this]() { exit(); });
+        addTimer(timeout, [this]() { exit(); });
     }
 
     auto resort = [](std::vector<std::shared_ptr<Timer> >& timers) {

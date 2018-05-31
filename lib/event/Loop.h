@@ -4,6 +4,7 @@
 #include <config.h>
 #include <util/Creatable.h>
 #include <util/Invocable.h>
+#include <cassert>
 #include <type_traits>
 #include <thread>
 #include <memory>
@@ -86,18 +87,18 @@ public:
 
     template<typename T, typename ...Args>
     typename std::enable_if<std::is_invocable_r<void, T, Args...>::value, std::shared_ptr<Timer> >::type
-    timer(std::chrono::milliseconds timeout, T&& func, Args&& ...args);
+    addTimer(std::chrono::milliseconds timeout, T&& func, Args&& ...args);
 
     template<typename T, typename ...Args>
     typename std::enable_if<std::is_invocable_r<void, T, Args...>::value, std::shared_ptr<Timer> >::type
-    timer(std::chrono::milliseconds timeout, TimerFlag flag, T&& func, Args&& ...args);
+    addTimer(std::chrono::milliseconds timeout, TimerFlag flag, T&& func, Args&& ...args);
 
     template<typename T, typename std::enable_if<std::is_base_of<Timer, T>::value, T>::type* = nullptr>
-    std::shared_ptr<Timer> timer(T&& timer);
+    std::shared_ptr<Timer> addTimer(T&& timer);
 
-    void timer(const std::shared_ptr<Timer>& timer);
+    void addTimer(const std::shared_ptr<Timer>& timer);
 
-    // file descriptor
+    // File descriptors
     class FD
     {
     public:
@@ -119,8 +120,8 @@ public:
 
     enum FdFlag { FdError = 0x1, FdRead = 0x2, FdWrite = 0x4 };
     template<typename T, typename std::enable_if<std::is_invocable_r<void, T, int, uint8_t>::value, T>::type* = nullptr>
-    FD fd(int fd, uint8_t flags, T&& callback);
-    void fd(int fd, uint8_t flags);
+    FD addFd(int fd, uint8_t flags, T&& callback);
+    void updateFd(int fd, uint8_t flags);
 
     int execute(std::chrono::milliseconds timeout = std::chrono::milliseconds{-1});
     void exit(int status = 0);
@@ -265,26 +266,26 @@ inline void Loop::post(std::unique_ptr<Event>&& event)
 
 template<typename T, typename ...Args>
 typename std::enable_if<std::is_invocable_r<void, T, Args...>::value, std::shared_ptr<Loop::Timer> >::type
-Loop::timer(std::chrono::milliseconds timeout, T&& func, Args&& ...args)
+Loop::addTimer(std::chrono::milliseconds timeout, T&& func, Args&& ...args)
 {
     auto st = std::make_shared<detail::ArgsTimer<T, Args...> >(timeout, Timeout, std::forward<T>(func), std::forward<Args>(args)...);
     st->mLoop = shared_from_this();
-    timer(st);
+    addTimer(st);
     return st;
 }
 
 template<typename T, typename ...Args>
 typename std::enable_if<std::is_invocable_r<void, T, Args...>::value, std::shared_ptr<Loop::Timer> >::type
-Loop::timer(std::chrono::milliseconds timeout, TimerFlag flag, T&& func, Args&& ...args)
+Loop::addTimer(std::chrono::milliseconds timeout, TimerFlag flag, T&& func, Args&& ...args)
 {
     auto st = std::make_shared<detail::ArgsTimer<T, Args...> >(timeout, flag, std::forward<T>(func), std::forward<Args>(args)...);
     st->mLoop = shared_from_this();
-    timer(st);
+    addTimer(st);
     return st;
 }
 
 template<typename T, typename std::enable_if<std::is_base_of<Loop::Timer, T>::value, T>::type*>
-inline std::shared_ptr<Loop::Timer> Loop::timer(T&& t)
+inline std::shared_ptr<Loop::Timer> Loop::addTimer(T&& t)
 {
     auto st = std::make_shared<Timer>(new T(std::forward<T>(t)));
     st->mLoop = shared_from_this();
@@ -292,7 +293,7 @@ inline std::shared_ptr<Loop::Timer> Loop::timer(T&& t)
     return st;
 }
 
-inline void Loop::timer(const std::shared_ptr<Timer>& t)
+inline void Loop::addTimer(const std::shared_ptr<Timer>& t)
 {
     t->mNext = std::chrono::steady_clock::now() + t->mTimeout;
     t->mLoop = shared_from_this();
@@ -310,8 +311,10 @@ inline void Loop::timer(const std::shared_ptr<Timer>& t)
 }
 
 template<typename T, typename std::enable_if<std::is_invocable_r<void, T, int, uint8_t>::value, T>::type*>
-inline Loop::FD Loop::fd(int fd, uint8_t flags, T&& callback)
+inline Loop::FD Loop::addFd(int fd, uint8_t flags, T&& callback)
 {
+    assert(!(flags & FdError));
+
     FD r;
     r.mFd = fd;
     r.mLoop = shared_from_this();
@@ -326,8 +329,10 @@ inline Loop::FD Loop::fd(int fd, uint8_t flags, T&& callback)
     return r;
 }
 
-inline void Loop::fd(int fd, uint8_t flags)
+inline void Loop::updateFd(int fd, uint8_t flags)
 {
+    assert(!(flags & FdError));
+
     std::lock_guard<std::mutex> locker(mMutex);
     mUpdateFds.push_back(std::make_pair(fd, flags));
     wakeup();

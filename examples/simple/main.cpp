@@ -71,13 +71,13 @@ int main(int argc, char** argv)
         });
 
     std::shared_ptr<event::Loop::Timer> timer;
-    timer = loop->timer(1000ms, event::Loop::Interval, [&timer]() {
+    timer = loop->addTimer(1000ms, event::Loop::Interval, [&timer]() {
             static int cnt = 0;
             Log(Log::Info) << "yes" << ++cnt;
             if (cnt == 5)
                 timer->stop();
         });
-    loop->timer(1500ms, [](Test&& t) {
+    loop->addTimer(1500ms, [](Test&& t) {
             Log(Log::Info) << "t" << t.str();
         }, Test("timer"));
     loop->send([](Test&& t) {

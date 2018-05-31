@@ -38,7 +38,7 @@ void TcpSocket::socketCallback(int fd, uint8_t flags)
         }
         if (flags & event::Loop::FdWrite) {
             // remove select for write
-            event::Loop::loop()->fd(fd, event::Loop::FdRead);
+            event::Loop::loop()->updateFd(fd, event::Loop::FdRead);
 
             if (mState & Connecting) {
                 // check connect status
@@ -84,7 +84,7 @@ void TcpSocket::socketCallback(int fd, uint8_t flags)
         }
         if (flags & event::Loop::FdWrite) {
             // remove select for write
-            event::Loop::loop()->fd(fd, event::Loop::FdRead);
+            event::Loop::loop()->updateFd(fd, event::Loop::FdRead);
 
             if (mState & Connecting) {
                 // check connect status
@@ -163,8 +163,8 @@ void TcpSocket::connect(const IPv4& ip, uint16_t port)
 #ifdef HAVE_NONBLOCK
     util::socket::setFlag(mFd4, O_NONBLOCK);
 #endif
-    mFd4Handle = event::Loop::loop()->fd(mFd4, event::Loop::FdRead|event::Loop::FdWrite,
-                                              std::bind(&TcpSocket::socketCallback, this, std::placeholders::_1, std::placeholders::_2));
+    mFd4Handle = event::Loop::loop()->addFd(mFd4, event::Loop::FdRead|event::Loop::FdWrite,
+                                            std::bind(&TcpSocket::socketCallback, this, std::placeholders::_1, std::placeholders::_2));
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
@@ -210,8 +210,8 @@ void TcpSocket::connect(const IPv6& ip, uint16_t port)
 #ifdef HAVE_NONBLOCK
     util::socket::setFlag(mFd6, O_NONBLOCK);
 #endif
-    mFd6Handle = event::Loop::loop()->fd(mFd6, event::Loop::FdRead|event::Loop::FdWrite,
-                                              std::bind(&TcpSocket::socketCallback, this, std::placeholders::_1, std::placeholders::_2));
+    mFd6Handle = event::Loop::loop()->addFd(mFd6, event::Loop::FdRead|event::Loop::FdWrite,
+                                            std::bind(&TcpSocket::socketCallback, this, std::placeholders::_1, std::placeholders::_2));
     struct sockaddr_in6 addr;
     memset(&addr, 0, sizeof(sockaddr_in6));
     addr.sin6_family = AF_INET6;
@@ -258,8 +258,8 @@ void TcpSocket::setSocket(int fd, bool ipv6)
     auto& handle = (ipv6 ? mFd6Handle : mFd4Handle);
     fdes = fd;
     mState = Connected;
-    handle = event::Loop::loop()->fd(fdes, event::Loop::FdRead,
-                                          std::bind(&TcpSocket::socketCallback, this, std::placeholders::_1, std::placeholders::_2));
+    handle = event::Loop::loop()->addFd(fdes, event::Loop::FdRead,
+                                        std::bind(&TcpSocket::socketCallback, this, std::placeholders::_1, std::placeholders::_2));
 }
 
 void TcpSocket::close()
@@ -286,7 +286,7 @@ void TcpSocket::processWrite(int fd)
             // welp
             if (errno == EWOULDBLOCK || errno == EAGAIN) {
                 // hey, good stuff. reenable the write flag
-                event::Loop::loop()->fd(fd, event::Loop::FdRead|event::Loop::FdWrite);
+                event::Loop::loop()->updateFd(fd, event::Loop::FdRead|event::Loop::FdWrite);
             } else {
                 Log(Log::Error) << "failed to write to fd" << fd << errno;
 
