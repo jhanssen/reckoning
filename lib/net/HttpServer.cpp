@@ -80,8 +80,6 @@ inline void HttpServer::setupServer()
 {
     assert(mServer);
 
-#warning have to store the connection handle and disconnect
-
     mServer->onConnection().connect([this](std::shared_ptr<TcpSocket>&& socket) {
             auto conn = mConnections.insert(std::make_pair(std::move(socket), Connection()));
             if (!conn.second) {
