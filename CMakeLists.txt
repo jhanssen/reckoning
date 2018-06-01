@@ -73,6 +73,24 @@ check_cxx_source_compiles("
     }"
     HAVE_INVOKABLE_R)
 
+check_cxx_source_compiles("
+    #include <any>
+    int main(int argc, char** argv)
+    {
+        std::any a = 10;
+        return std::any_cast<int>(a);
+    }"
+    HAVE_ANY_CAST)
+
+check_cxx_source_compiles("
+    #include <experimental/any>
+    int main(int argc, char** argv)
+    {
+        auto a = std::experimental::any(10);
+        return *std::experimental::any_cast<int>(&a);
+    }"
+    HAVE_EXPERIMENTAL_ANY_CAST)
+
 configure_file(
     ${CMAKE_CURRENT_LIST_DIR}/cmake/config.h.in
     ${CMAKE_CURRENT_BINARY_DIR}/cmake/config.h

@@ -8,5 +8,7 @@
 #cmakedefine HAVE_INVOKABLE_R
 #cmakedefine HAVE_NONBLOCK
 #cmakedefine HAVE_NOSIGPIPE
+#cmakedefine HAVE_ANY_CAST
+#cmakedefine HAVE_EXPERIMENTAL_ANY_CAST
 
 #endif
