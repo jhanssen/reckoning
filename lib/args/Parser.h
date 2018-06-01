@@ -108,6 +108,7 @@ inline Args Parser::parse(int argc, char** argv)
                     continue;
                 case Freeform:
                 case DashDash:
+                case Value:
                     continue;
                 default:
                     error("unexpected dash", off + arg - argStart, argStart);
