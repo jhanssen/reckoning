@@ -3,6 +3,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <cstdint>
 #include <util/Any.h>
 
 namespace reckoning {
@@ -22,7 +23,10 @@ public:
     template<typename T, typename std::enable_if<!std::is_pod<T>::value>::type* = nullptr>
     T value(const std::string& key, const T& defaultValue = T()) const;
 
-    template<typename T, typename std::enable_if<std::is_pod<T>::value>::type* = nullptr>
+    template<typename T, typename std::enable_if<std::is_pod<T>::value && !std::is_floating_point<T>::value>::type* = nullptr>
+    T value(const std::string& key, T defaultValue = T()) const;
+
+    template<typename T, typename std::enable_if<std::is_pod<T>::value && std::is_floating_point<T>::value>::type* = nullptr>
     T value(const std::string& key, T defaultValue = T()) const;
 
     size_t freeformSize() const;
@@ -59,6 +63,15 @@ inline bool Args::has(const std::string& key) const
         return false;
     if (v->second.type() == typeid(T))
         return true;
+    if (v->second.type() == typeid(int64_t)) {
+        if (typeid(T) == typeid(int32_t) ||
+            typeid(T) == typeid(float) ||
+            typeid(T) == typeid(double))
+            return true;
+        return false;
+    }
+    if (typeid(T) == typeid(float) && v->second.type() == typeid(double))
+        return true;
     return false;
 }
 
@@ -73,7 +86,7 @@ inline T Args::value(const std::string& key, const T& defaultValue) const
     return defaultValue;
 }
 
-template<typename T, typename std::enable_if<std::is_pod<T>::value>::type*>
+template<typename T, typename std::enable_if<std::is_pod<T>::value && !std::is_floating_point<T>::value>::type*>
 inline T Args::value(const std::string& key, T defaultValue) const
 {
     auto v = mValues.find(key);
@@ -81,6 +94,21 @@ inline T Args::value(const std::string& key, T defaultValue) const
         return defaultValue;
     if (v->second.type() == typeid(T))
         return std::any_cast<T>(v->second);
+    if (typeid(T) == typeid(int32_t) && v->second.type() == typeid(int64_t))
+        return static_cast<int32_t>(std::any_cast<int64_t>(v->second));
+    return defaultValue;
+}
+
+template<typename T, typename std::enable_if<std::is_pod<T>::value && std::is_floating_point<T>::value>::type*>
+inline T Args::value(const std::string& key, T defaultValue) const
+{
+    auto v = mValues.find(key);
+    if (v == mValues.end())
+        return defaultValue;
+    if (v->second.type() == typeid(double))
+        return static_cast<T>(std::any_cast<double>(v->second));
+    if (v->second.type() == typeid(int64_t))
+        return static_cast<T>(std::any_cast<int64_t>(v->second));
     return defaultValue;
 }
 

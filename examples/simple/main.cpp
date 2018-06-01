@@ -59,6 +59,8 @@ int main(int argc, char** argv)
     auto args = reckoning::args::Parser::parse(argc, argv);
     if (args.has<bool>("f"))
         log::Log(log::Log::Error) << "f" << args.value<bool>("f");
+    if (args.has<float>("i"))
+        log::Log(log::Log::Error) << "i" << args.value<float>("i");
 
     return 0;
 

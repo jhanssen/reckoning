@@ -34,9 +34,9 @@ inline Args Parser::parse(int argc, char** argv)
         if (end - start == 5 && !strcmp("false", start))
             return std::any(false);
         char* endptr;
-        long l = strtol(start, &endptr, 0);
+        long long l = strtoll(start, &endptr, 0);
         if (endptr == end) {
-            return std::any(static_cast<int>(l));
+            return std::any(static_cast<int64_t>(l));
         }
         double d = strtod(start, &endptr);
         if (endptr == end) {
