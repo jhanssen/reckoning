@@ -154,6 +154,7 @@ inline Args Parser::parse(int argc, char** argv)
             case '=':
                 switch (state) {
                 case Freeform:
+                case Value:
                     continue;
                 case DashDash:
                     add(DashDash, prev, arg);
