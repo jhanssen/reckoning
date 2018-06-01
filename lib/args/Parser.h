@@ -50,7 +50,7 @@ inline Args Parser::parse(int argc, char** argv)
         assert(state != Normal);
         switch (state) {
         case Dash:
-            while (start < end) {
+            while (start < end - 1) {
                 args.mValues[std::string(1, *(start++))] = std::any(true);
             }
             break;
