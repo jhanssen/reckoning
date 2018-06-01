@@ -7,6 +7,8 @@
 #include <net/HttpServer.h>
 #include <net/WebSocketClient.h>
 #include <net/WebSocketServer.h>
+#include <args/Args.h>
+#include <args/Parser.h>
 #include <string>
 
 using namespace reckoning;
@@ -53,6 +55,12 @@ event::Signal<int, Test&&> sig;
 int main(int argc, char** argv)
 {
     Log::initialize(Log::Debug);
+
+    auto args = reckoning::args::Parser::parse(argc, argv);
+    if (args.has<bool>("f"))
+        log::Log(log::Log::Error) << "f" << args.value<bool>("f");
+
+    return 0;
 
     std::shared_ptr<event::Loop> loop = event::Loop::create();
     loop->init();
