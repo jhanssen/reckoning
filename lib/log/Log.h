@@ -35,6 +35,9 @@ public:
     template<typename T, typename std::enable_if<std::is_integral<T>::value, T>::type* = nullptr>
     Log& operator<<(T num);
 
+    template<typename T, typename std::enable_if<std::is_floating_point<T>::value, T>::type* = nullptr>
+    Log& operator<<(T num);
+
     template<typename T, typename std::enable_if<std::is_enum<T>::value, T>::type* = nullptr>
     Log& operator<<(T num);
 
@@ -113,6 +116,12 @@ inline Log& Log::operator<<(const std::string& str)
 }
 
 template<typename T, typename std::enable_if<std::is_integral<T>::value, T>::type*>
+inline Log& Log::operator<<(T num)
+{
+    return operator<<(std::to_string(num).c_str());
+}
+
+template<typename T, typename std::enable_if<std::is_floating_point<T>::value, T>::type*>
 inline Log& Log::operator<<(T num)
 {
     return operator<<(std::to_string(num).c_str());
