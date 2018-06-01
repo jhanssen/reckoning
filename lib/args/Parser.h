@@ -127,7 +127,7 @@ inline Args Parser::parse(int argc, char** argv)
                     state = Normal;
                     continue;
                 case DashDash:
-                    if (*(arg - 2) == '-') {
+                    if (arg - argStart == 3) { // 3 = --\0
                         prev = arg;
                         state = Freeform;
                     } else {
