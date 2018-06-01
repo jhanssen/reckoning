@@ -98,14 +98,20 @@ inline Args Parser::parse(int argc, char** argv)
                     state = Dash;
                     continue;
                 case Dash:
-                    ++prev;
-                    state = DashDash;
+                    if (prev == arg - 1) {
+                        ++prev;
+                        state = DashDash;
+                    } else {
+                        error("unexpected dash", off + arg - argStart, argStart);
+                        return Args();
+                    }
                     continue;
                 case Freeform:
                 case DashDash:
                     continue;
                 default:
                     error("unexpected dash", off + arg - argStart, argStart);
+                    return Args();
                 }
                 break;
             case '\0':
