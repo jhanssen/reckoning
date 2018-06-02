@@ -6,6 +6,8 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
+option(RECKONING_EXAMPLES "Build examples" ON)
+
 include(CheckCSourceCompiles)
 include(CheckCXXSourceCompiles)
 include(cmake/functions.cmake)
@@ -98,4 +100,6 @@ configure_file(
 
 add_subdirectory(3rdparty)
 add_subdirectory(lib)
-add_subdirectory(examples)
+if (RECKONING_EXAMPLES)
+    add_subdirectory(examples)
+endif()
