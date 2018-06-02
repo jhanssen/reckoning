@@ -58,7 +58,7 @@ inline Args Parser::parse(int argc, char** argv)
             key = std::string(start, end - 1 - start);
             break;
         case Value: {
-            const auto v = guessValue(std::string(start, end - start));
+            const auto v = guessValue(std::string(start, end - 1 - start));
             if (v.type() == typeid(bool)) {
                 if (key.size() > 3 && !strncmp(key.c_str(), "no-", 3)) {
                     args.mValues[key.substr(3)] = std::any(!std::any_cast<bool>(std::move(v)));
@@ -134,9 +134,13 @@ inline Args Parser::parse(int argc, char** argv)
                         state = FreeformOnly;
                     } else {
                         add(DashDash, prev, arg);
-                        add(Value, arg, arg + 1);
-                        prev = arg;
-                        state = Normal;
+                        if (i + 1 == argc) {
+                            error("missing value", off + arg - argStart, argStart);
+                            return Args();
+                        } else {
+                            prev = arg;
+                            state = Value;
+                        }
                     }
                     continue;
                 case Freeform:
@@ -147,6 +151,11 @@ inline Args Parser::parse(int argc, char** argv)
                     prev = arg;
                     continue;
                 case Value:
+                    if (arg - 1 == prev) {
+                        // missing value
+                        error("missing value", off + arg - argStart, argStart);
+                        return Args();
+                    }
                     add(Value, prev, arg);
                     prev = arg;
                     state = Normal;
