@@ -119,7 +119,7 @@ inline size_t Args::freeformSize() const
     return mFreeform.size();
 }
 
-std::string Args::freeformValue(size_t idx) const
+inline std::string Args::freeformValue(size_t idx) const
 {
     if (idx >= mFreeform.size())
         return std::string();
