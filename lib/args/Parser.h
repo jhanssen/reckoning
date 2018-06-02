@@ -21,7 +21,7 @@ inline Args Parser::parse(int argc, char** argv)
 {
     Args args;
 
-    enum State { Normal, Dash, DashDash, Value, Freeform };
+    enum State { Normal, Dash, DashDash, Value, Freeform, FreeformOnly };
     State state = Normal;
 
     std::string key;
@@ -107,6 +107,7 @@ inline Args Parser::parse(int argc, char** argv)
                     }
                     continue;
                 case Freeform:
+                case FreeformOnly:
                 case DashDash:
                 case Value:
                     continue;
@@ -130,7 +131,7 @@ inline Args Parser::parse(int argc, char** argv)
                 case DashDash:
                     if (arg - argStart == 3) { // 3 = --\0
                         prev = arg;
-                        state = Freeform;
+                        state = FreeformOnly;
                     } else {
                         add(DashDash, prev, arg);
                         add(Value, arg, arg + 1);
@@ -139,6 +140,9 @@ inline Args Parser::parse(int argc, char** argv)
                     }
                     continue;
                 case Freeform:
+                    state = Normal;
+                    // fall through
+                case FreeformOnly:
                     add(Freeform, prev, arg);
                     prev = arg;
                     continue;
@@ -155,6 +159,7 @@ inline Args Parser::parse(int argc, char** argv)
             case '=':
                 switch (state) {
                 case Freeform:
+                case FreeformOnly:
                 case Value:
                     continue;
                 case DashDash:
@@ -168,6 +173,10 @@ inline Args Parser::parse(int argc, char** argv)
                 }
                 break;
             default:
+                if (state == Normal && argStart == arg - 1) {
+                    prev = arg - 1;
+                    state = Freeform;
+                }
                 break;
             }
         }

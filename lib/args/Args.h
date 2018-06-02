@@ -112,6 +112,18 @@ inline T Args::value(const std::string& key, T defaultValue) const
     return defaultValue;
 }
 
+inline size_t Args::freeformSize() const
+{
+    return mFreeform.size();
+}
+
+std::string Args::freeformValue(size_t idx) const
+{
+    if (idx >= mFreeform.size())
+        return std::string();
+    return mFreeform[idx];
+}
+
 }} // namespace reckoning::args
 
 #endif // ARGS_H

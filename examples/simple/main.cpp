@@ -61,6 +61,9 @@ int main(int argc, char** argv)
         log::Log(log::Log::Error) << "f" << args.value<bool>("f");
     if (args.has<float>("i"))
         log::Log(log::Log::Error) << "i" << args.value<float>("i");
+    if (args.freeformSize() > 0) {
+        log::Log(log::Log::Error) << "freeforms" << args.freeformSize() << args.freeformValue(0);
+    }
 
     return 0;
 
