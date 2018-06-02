@@ -4,6 +4,7 @@
 #include <string>
 #include <unordered_map>
 #include <cstdint>
+#include <typeinfo>
 #include <util/Any.h>
 
 namespace reckoning {
