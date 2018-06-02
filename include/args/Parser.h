@@ -110,6 +110,12 @@ inline Args Parser::parse(int argc, char** argv)
                 case FreeformOnly:
                 case DashDash:
                 case Value:
+                    if (arg - 1 == argStart) {
+                        // add value as empty and keep going with dash
+                        add(Value, arg, arg + 1);
+                        prev = arg;
+                        state = Dash;
+                    }
                     continue;
                 default:
                     error("unexpected dash", off + arg - argStart, argStart);
@@ -135,8 +141,9 @@ inline Args Parser::parse(int argc, char** argv)
                     } else {
                         add(DashDash, prev, arg);
                         if (i + 1 == argc) {
-                            error("missing value", off + arg - argStart, argStart);
-                            return Args();
+                            add(Value, arg, arg + 1);
+                            prev = arg;
+                            state = Normal;
                         } else {
                             prev = arg;
                             state = Value;
