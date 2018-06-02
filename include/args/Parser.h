@@ -12,10 +12,29 @@ class Parser
 {
 public:
     static Args parse(int argc, char** argv);
+    static std::any guessValue(const std::string& val);
 
 private:
     Parser() = delete;
 };
+
+inline std::any Parser::guessValue(const std::string& val)
+{
+    if (val.empty())
+        return std::any(true);
+    if (val == "true")
+        return std::any(true);
+    if (val == "false")
+        return std::any(false);
+    char* endptr;
+    long long l = strtoll(val.c_str(), &endptr, 0);
+    if (*endptr == '\0')
+        return std::any(static_cast<int64_t>(l));
+    double d = strtod(val.c_str(), &endptr);
+    if (*endptr == '\0')
+        return std::any(d);
+    return std::any(val);
+}
 
 inline Args Parser::parse(int argc, char** argv)
 {
@@ -26,26 +45,7 @@ inline Args Parser::parse(int argc, char** argv)
 
     std::string key;
 
-    auto guessValue = [](char* start, char* end) -> std::any {
-        if (!(end - start))
-            return std::any(true);
-        if (end - start == 4 && !strcmp("true", start))
-            return std::any(true);
-        if (end - start == 5 && !strcmp("false", start))
-            return std::any(false);
-        char* endptr;
-        long long l = strtoll(start, &endptr, 0);
-        if (endptr == end) {
-            return std::any(static_cast<int64_t>(l));
-        }
-        double d = strtod(start, &endptr);
-        if (endptr == end) {
-            return std::any(d);
-        }
-        return std::any(std::string(start, end - start));
-    };
-
-    auto add = [&key, &args, &guessValue](State state, char* start, char* end) {
+    auto add = [&key, &args](State state, char* start, char* end) {
         //log::Log(log::Log::Error) << "want to add" << state << std::string(start, end - 1 - start);
         assert(state != Normal);
         switch (state) {
@@ -58,7 +58,7 @@ inline Args Parser::parse(int argc, char** argv)
             key = std::string(start, end - 1 - start);
             break;
         case Value: {
-            const auto v = guessValue(start, end - 1);
+            const auto v = guessValue(std::string(start, end - start));
             if (v.type() == typeid(bool)) {
                 if (key.size() > 3 && !strncmp(key.c_str(), "no-", 3)) {
                     args.mValues[key.substr(3)] = std::any(!std::any_cast<bool>(std::move(v)));
