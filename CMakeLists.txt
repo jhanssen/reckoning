@@ -103,3 +103,7 @@ add_subdirectory(lib)
 if (RECKONING_EXAMPLES)
     add_subdirectory(examples)
 endif()
+target_include_directories(reckoning
+    PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include;${CMAKE_CURRENT_BINARY_DIR}/cmake
+)

@@ -15,7 +15,3 @@ include_sources(SOURCES util)
 
 add_library(reckoning SHARED ${SOURCES})
 target_link_libraries(reckoning c-ares::cares_shared OpenSSL::Crypto wslay_shared pthread)
-target_include_directories(reckoning
-    PUBLIC
-    ${CMAKE_SOURCE_DIR}/include;${CMAKE_BINARY_DIR}/cmake
-)
