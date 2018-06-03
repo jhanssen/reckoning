@@ -61,7 +61,7 @@ private:
     static int sFd;
     static Level sLevel;
     static Output sOutput;
-    static std::mutex sMutex;
+    static std::mutex sMutex, sHandlerMutex;
     static std::function<void(Output, std::string&&)> sHandler;
 };
 
@@ -86,7 +86,7 @@ inline bool Log::handle(Output output, const char* str)
 {
     std::function<void(Output, std::string&&)> h;
     {
-        std::lock_guard<std::mutex> locker(sMutex);
+        std::lock_guard<std::mutex> locker(sHandlerMutex);
         if (!sHandler)
             return false;
         h = sHandler;
