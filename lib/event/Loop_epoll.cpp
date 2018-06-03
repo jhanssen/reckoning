@@ -115,6 +115,14 @@ int Loop::execute(std::chrono::milliseconds timeout)
         // process new fds
         {
             std::lock_guard<std::mutex> locker(mMutex);
+            // did one of the events stop us?
+            if (mStopped) {
+                // shutdown threads etc
+                net::Resolver::resolver().shutdown();
+
+                return mStatus;
+            }
+
             if (!mPendingFds.empty()) {
                 fds.clear();
                 fds.reserve(mPendingFds.size());
