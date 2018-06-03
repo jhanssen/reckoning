@@ -357,6 +357,8 @@ inline Loop::FD& Loop::FD::operator=(FD&& other)
 
 inline void Loop::FD::remove()
 {
+    if (mFd == -1)
+        return;
     auto loop = mLoop.lock();
     if (!loop)
         return;
@@ -391,6 +393,7 @@ inline void Loop::FD::remove()
     }
     loop->mRemovedFds.push_back(mFd);
     loop->wakeup();
+    mFd = -1;
 }
 
 inline std::shared_ptr<Loop> Loop::loop()
