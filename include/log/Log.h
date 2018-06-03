@@ -2,6 +2,7 @@
 #define LOG_H
 
 #include <string>
+#include <functional>
 #include <mutex>
 #include <cstdio>
 #include <unistd.h>
@@ -47,6 +48,10 @@ public:
     Log& operator<<(const EndLine&);
 
     static void initialize(Level level, Output output = Default, const std::string& filename = std::string());
+    static void setLogHandler(std::function<void(Output, std::string&&)>&& handler);
+
+private:
+    bool handle(Output level, const char* str);
 
 private:
     Level mLevel;
@@ -57,6 +62,7 @@ private:
     static Level sLevel;
     static Output sOutput;
     static std::mutex sMutex;
+    static std::function<void(Output, std::string&&)> sHandler;
 };
 
 inline Log::Log(Level level, Output output)
@@ -76,6 +82,19 @@ inline Log::~Log()
     sMutex.unlock();
 }
 
+inline bool Log::handle(Output output, const char* str)
+{
+    std::function<void(Output, std::string&&)> h;
+    {
+        std::lock_guard<std::mutex> locker(sMutex);
+        if (!sHandler)
+            return false;
+        h = sHandler;
+    }
+    h(output, std::string(str));
+    return true;
+}
+
 inline Log& Log::operator<<(const char* str)
 {
     if (mLevel < sLevel)
@@ -93,10 +112,12 @@ inline Log& Log::operator<<(const char* str)
             maybeWriteToFile(sFd);
             // fallthrough
         case Stdout:
-            dprintf(STDOUT_FILENO, "%s", str);
+            if (!handle(Stdout, str))
+                dprintf(STDOUT_FILENO, "%s", str);
             break;
         case Stderr:
-            dprintf(STDERR_FILENO, "%s", str);
+            if (!handle(Stderr, str))
+                dprintf(STDERR_FILENO, "%s", str);
             break;
         case File:
             maybeWriteToFile(sFd);
