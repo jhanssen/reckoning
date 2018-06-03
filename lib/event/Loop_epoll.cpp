@@ -204,6 +204,11 @@ int Loop::execute(std::chrono::milliseconds timeout)
                     char c;
                     do {
                         e = read(fd, &c, 1);
+                        if (e == 1 && c == 'q') {
+                            // we want to quit
+                            std::lock_guard<std::mutex> locker(mMutex);
+                            mStopped = true;
+                        }
                     } while (e == 1);
                 } else {
                     processFd(fd, FdRead);
