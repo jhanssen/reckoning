@@ -51,17 +51,19 @@ public:
     static void setLogHandler(std::function<void(Output, std::string&&)>&& handler);
 
 private:
-    bool handle(Output level, const char* str);
+    void append(const char* str);
 
 private:
     Level mLevel;
     Output mOutput;
     int mNum;
+    std::string mBuffer;
 
     static int sFd;
     static Level sLevel;
     static Output sOutput;
     static std::mutex sMutex, sHandlerMutex;
+    static std::atomic<bool> sHasHandler;
     static std::function<void(Output, std::string&&)> sHandler;
 };
 
@@ -76,23 +78,26 @@ inline Log::Log(Level level, Output output)
 inline Log::~Log()
 {
     operator<<("\n");
+
+    if (sHasHandler.load()) {
+        std::function<void(Output, std::string&&)> h;
+        {
+            std::lock_guard<std::mutex> locker(sHandlerMutex);
+            assert(sHasHandler);
+            h = sHandler;
+        }
+        h(mOutput, std::move(mBuffer));
+    }
+
     if (mLevel == Fatal) {
         abort();
     }
     sMutex.unlock();
 }
 
-inline bool Log::handle(Output output, const char* str)
+inline void Log::append(const char* str)
 {
-    std::function<void(Output, std::string&&)> h;
-    {
-        std::lock_guard<std::mutex> locker(sHandlerMutex);
-        if (!sHandler)
-            return false;
-        h = sHandler;
-    }
-    h(output, std::string(str));
-    return true;
+    mBuffer += str;
 }
 
 inline Log& Log::operator<<(const char* str)
@@ -112,12 +117,18 @@ inline Log& Log::operator<<(const char* str)
             maybeWriteToFile(sFd);
             // fallthrough
         case Stdout:
-            if (!handle(Stdout, str))
+            if (sHasHandler.load()) {
+                append(str);
+            } else {
                 dprintf(STDOUT_FILENO, "%s", str);
+            }
             break;
         case Stderr:
-            if (!handle(Stderr, str))
+            if (sHasHandler.load()) {
+                append(str);
+            } else {
                 dprintf(STDERR_FILENO, "%s", str);
+            }
             break;
         case File:
             maybeWriteToFile(sFd);

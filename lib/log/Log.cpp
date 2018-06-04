@@ -10,6 +10,7 @@ Log::Level Log::sLevel = Log::Error;
 Log::Output Log::sOutput = Log::Default;
 std::mutex Log::sMutex;
 std::mutex Log::sHandlerMutex;
+std::atomic<bool> Log::sHasHandler = false;
 std::function<void(Log::Output, std::string&&)> Log::sHandler;
 
 void Log::initialize(Level level, Output output, const std::string& filename)
@@ -30,4 +31,5 @@ void Log::setLogHandler(std::function<void(Output, std::string&&)>&& handler)
 {
     std::lock_guard<std::mutex> locker(sHandlerMutex);
     sHandler = std::forward<std::function<void(Output, std::string&&)> >(handler);
+    sHasHandler = true;
 }
