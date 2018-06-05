@@ -4,6 +4,7 @@
 #include <string>
 #include <functional>
 #include <mutex>
+#include <cassert>
 #include <cstdio>
 #include <unistd.h>
 
