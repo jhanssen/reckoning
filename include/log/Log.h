@@ -2,6 +2,7 @@
 #define LOG_H
 
 #include <string>
+#include <atomic>
 #include <functional>
 #include <mutex>
 #include <cassert>
