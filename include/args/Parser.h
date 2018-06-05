@@ -4,6 +4,7 @@
 #include <args/Args.h>
 #include <log/Log.h>
 #include <cassert>
+#include <cstring>
 
 namespace reckoning {
 namespace args {
