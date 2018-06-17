@@ -149,8 +149,13 @@ int Loop::execute(std::chrono::milliseconds timeout)
         {
             std::lock_guard<std::mutex> locker(mMutex);
             if (!mTimers.empty()) {
-                const auto when = mTimers.front()->mNext - std::chrono::steady_clock::now();
-                epollTimeout = std::chrono::duration_cast<std::chrono::milliseconds>(when).count();
+                auto now = std::chrono::steady_clock::now();
+                if (now <= mTimers.front()->mNext) {
+                    const auto when = mTimers.front()->mNext - now;
+                    epollTimeout = std::chrono::duration_cast<std::chrono::milliseconds>(when).count();
+                } else {
+                    epollTimeout = 0;
+                }
             } else {
                 epollTimeout = -1;
             }

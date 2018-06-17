@@ -142,8 +142,13 @@ int Loop::execute(std::chrono::milliseconds timeout)
         {
             std::lock_guard<std::mutex> locker(mMutex);
             if (!mTimers.empty()) {
-                auto when = mTimers.front()->mNext - std::chrono::steady_clock::now();
-                ts = std::chrono::duration_cast<timespec>(when);
+                auto now = std::chrono::steady_clock::now();
+                if (now <= mTimers.front()->mNext) {
+                    auto when = mTimers.front()->mNext - now;
+                    ts = std::chrono::duration_cast<timespec>(when);
+                } else {
+                    memset(&ts, 0, sizeof(ts));
+                }
                 tsptr = &ts;
             } else {
                 tsptr = nullptr;
