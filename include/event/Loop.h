@@ -94,9 +94,7 @@ public:
     typename std::enable_if<std::is_invocable_r<void, T, Args...>::value, std::shared_ptr<Timer> >::type
     addTimer(std::chrono::milliseconds timeout, TimerFlag flag, T&& func, Args&& ...args);
 
-    template<typename T, typename std::enable_if<std::is_base_of<Timer, T>::value, T>::type* = nullptr>
-    std::shared_ptr<Timer> addTimer(T&& timer);
-
+    void addTimer(std::shared_ptr<Timer>&& timer);
     void addTimer(const std::shared_ptr<Timer>& timer);
 
     // File descriptors
@@ -303,13 +301,21 @@ Loop::addTimer(std::chrono::milliseconds timeout, TimerFlag flag, T&& func, Args
     return st;
 }
 
-template<typename T, typename std::enable_if<std::is_base_of<Loop::Timer, T>::value, T>::type*>
-inline std::shared_ptr<Loop::Timer> Loop::addTimer(T&& t)
+inline void Loop::addTimer(std::shared_ptr<Timer>&& t)
 {
-    auto st = std::make_shared<Timer>(new T(std::forward<T>(t)));
-    st->mLoop = shared_from_this();
-    timer(st);
-    return st;
+    t->mNext = std::chrono::steady_clock::now() + t->mTimeout;
+    t->mLoop = shared_from_this();
+
+    std::lock_guard<std::mutex> locker(mMutex);
+
+    // we need our timer list to be sorted
+    auto compare = [](const std::shared_ptr<Timer>& a, const std::shared_ptr<Timer>& b) -> bool {
+        return a->mNext < b->mNext;
+    };
+    auto it = std::lower_bound(mTimers.begin(), mTimers.end(), t, compare);
+    mTimers.insert(it, std::forward<std::shared_ptr<Timer> >(t));
+
+    wakeup();
 }
 
 inline void Loop::addTimer(const std::shared_ptr<Timer>& t)
