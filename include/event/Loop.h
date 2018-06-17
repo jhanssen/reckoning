@@ -72,6 +72,7 @@ public:
         std::shared_ptr<Loop> loop() const { return mLoop.lock(); }
 
         void stop();
+        bool isActive() const;
 
     protected:
         virtual void execute() = 0;
@@ -181,6 +182,24 @@ inline void Loop::Timer::stop()
         ++it;
     }
 }
+
+inline bool Loop::Timer::isActive() const
+{
+    std::shared_ptr<Loop> loop = mLoop.lock();
+    if (!loop)
+        return false;
+
+    std::lock_guard<std::mutex> locker(loop->mMutex);
+    auto it = loop->mTimers.begin();
+    const auto end = loop->mTimers.cend();
+    while (it != end) {
+        if (it->get() == this)
+            return true;
+        ++it;
+    }
+    return false;
+}
+
 
 namespace detail {
 template<typename T, typename ...Args>
