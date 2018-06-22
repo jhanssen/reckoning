@@ -152,7 +152,8 @@ int Loop::execute(std::chrono::milliseconds timeout)
                 auto now = std::chrono::steady_clock::now();
                 if (now <= mTimers.front()->mNext) {
                     const auto when = mTimers.front()->mNext - now;
-                    epollTimeout = std::chrono::duration_cast<std::chrono::milliseconds>(when).count();
+                    const auto mscount = std::chrono::duration_cast<std::chrono::milliseconds>(when).count();
+                    epollTimeout = std::min<int>(mscount, std::numeric_limits<int>::max());
                 } else {
                     epollTimeout = 0;
                 }
