@@ -25,7 +25,9 @@ public:
     size_t max() const;
 
     void assign(const uint8_t* data, size_t size);
+    void assign(const std::shared_ptr<Buffer>& buffer);
     void append(const uint8_t* data, size_t size);
+    void append(const std::shared_ptr<Buffer>& buffer);
 
     template<typename... Args>
     static std::shared_ptr<Buffer> concat(Args&&... args);
@@ -125,11 +127,21 @@ inline void Buffer::assign(const uint8_t* data, size_t size)
     mSize = size;
 }
 
+inline void Buffer::assign(const std::shared_ptr<Buffer>& buffer)
+{
+    assign(buffer->data(), buffer->size());
+}
+
 inline void Buffer::append(const uint8_t* data, size_t size)
 {
     assert(mSize + size <= mMax);
     memcpy(mData + mSize, data, size);
     mSize += size;
+}
+
+inline void Buffer::append(const std::shared_ptr<Buffer>& buffer)
+{
+    append(buffer->data(), buffer->size());
 }
 
 namespace detail {

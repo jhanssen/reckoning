@@ -9,8 +9,10 @@ endif()
 include(FindOpenSSL)
 
 include_sources(SOURCES event)
+include_sources(SOURCES fs)
 include_sources(SOURCES log)
 include_sources(SOURCES net)
+include_sources(SOURCES serializer)
 include_sources(SOURCES util)
 
 add_library(reckoning SHARED ${SOURCES})
