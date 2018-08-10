@@ -8,6 +8,7 @@ void Serializer::realloc(size_t size)
 {
     if (!mBuffer) {
         mBuffer = buffer::Pool<4, 16384>::pool().get(size);
+        mBuffer->setSize(0);
         return;
     }
 
@@ -20,6 +21,7 @@ void Serializer::realloc(size_t size)
     }
 
     auto buffer = buffer::Pool<4, 16384>::pool().get(newSize);
+    buffer->setSize(0);
     buffer->append(mBuffer);
     mBuffer = buffer;
 }

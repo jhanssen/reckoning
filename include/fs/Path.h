@@ -44,6 +44,7 @@ public:
 
     std::shared_ptr<buffer::Buffer> read() const;
     bool write(const std::shared_ptr<buffer::Buffer>& buffer);
+    bool remove();
 
 private:
     std::string mPath;

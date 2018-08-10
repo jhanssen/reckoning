@@ -74,6 +74,11 @@ bool Path::mkdir(MkdirMode mode)
     return process(mPath.substr(0, len), R_OK | W_OK | X_OK);
 }
 
+bool Path::remove()
+{
+    return unlink(mPath.c_str()) == 0;
+}
+
 std::shared_ptr<buffer::Buffer> Path::read() const
 {
     FILE* f = fopen(mPath.c_str(), "r");

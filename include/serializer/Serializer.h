@@ -17,7 +17,8 @@ class Serializer
 public:
     enum {
         Read = 0x1,
-        Write = 0x2
+        Write = 0x2,
+        Truncate = 0x4
     };
 
     Serializer(const fs::Path& path, uint8_t mode = Serializer::Read);
@@ -29,8 +30,10 @@ public:
         DataNotReady,
         DataReady,
     };
-    ValidType isValid() const;
+    ValidType valid() const;
+    bool isValid() const;
     event::Signal<ValidType>& onValid();
+
     uint8_t mode() const;
 
     // serialize in
@@ -68,6 +71,8 @@ private:
 inline Serializer::Serializer(const fs::Path& path, uint8_t mode)
     : mPath(path), mReadPos(0), mMode(mode)
 {
+    if (mMode & Truncate)
+        mPath.remove();
     if (mMode & Read)
         mBuffer = mPath.read();
     if (!mBuffer) {
@@ -88,6 +93,16 @@ inline Serializer::~Serializer()
     if (mMode & Write && !mPath.isEmpty()) {
         mPath.write(mBuffer);
     }
+}
+
+Serializer::ValidType Serializer::valid() const
+{
+    return mValid;
+}
+
+bool Serializer::isValid() const
+{
+    return mValid == NoData || mValid == DataReady;
 }
 
 inline uint8_t Serializer::mode() const
