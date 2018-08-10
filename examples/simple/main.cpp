@@ -7,6 +7,7 @@
 #include <net/HttpServer.h>
 #include <net/WebSocketClient.h>
 #include <net/WebSocketServer.h>
+#include <serializer/Serializer.h>
 #include <args/Args.h>
 #include <args/Parser.h>
 #include <string>
@@ -55,6 +56,20 @@ event::Signal<int, Test&&> sig;
 int main(int argc, char** argv)
 {
     Log::initialize(Log::Debug);
+
+    {
+        serializer::Serializer s1(fs::Path("/tmp/reckoning_serialize"), serializer::Serializer::Write | serializer::Serializer::Truncate);
+        assert(s1.isValid());
+        s1 << "ting" << 123;
+    }
+    {
+        serializer::Serializer s2(fs::Path("/tmp/reckoning_serialize"));
+        assert(s2.valid() == serializer::Serializer::DataReady);
+        std::string str;
+        int i;
+        s2 >> str >> i;
+        printf("deserialized %s %d\n", str.c_str(), i);
+    }
 
     auto args = reckoning::args::Parser::parse(argc, argv);
     if (args.has<bool>("f"))
