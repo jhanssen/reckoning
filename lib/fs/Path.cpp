@@ -9,6 +9,8 @@ using namespace reckoning::fs;
 
 Path::Type Path::type() const
 {
+    if (mPath.empty())
+        return Error;
     struct stat st;
     if (::stat(mPath.c_str(), &st) == -1) {
         if (errno == ENOENT)

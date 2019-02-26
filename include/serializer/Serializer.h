@@ -21,8 +21,16 @@ public:
         Truncate = 0x4
     };
 
+    // operate on buffer only
+    Serializer(); // write
+    Serializer(const std::shared_ptr<buffer::Buffer>& buffer); // read
+    Serializer(std::shared_ptr<buffer::Buffer>& buffer, uint8_t mode = Serializer::Read);
+    // sync to file system
     Serializer(const fs::Path& path, uint8_t mode = Serializer::Read);
+
     ~Serializer();
+
+    void close();
 
     enum ValidType {
         Invalid,
@@ -54,6 +62,8 @@ public:
     template<typename T, typename std::enable_if<std::is_enum<T>::value, T>::type* = nullptr>
     Serializer& operator>>(T& num);
 
+    const std::shared_ptr<buffer::Buffer>& buffer() const { return mBuffer; }
+
 private:
     void read(void* data, size_t size);
     void write(const void* data, size_t size);
@@ -65,18 +75,59 @@ private:
     size_t mReadPos;
     event::Signal<ValidType> mOnValid;
     std::shared_ptr<buffer::Buffer> mBuffer;
-    uint8_t mMode;
+    std::shared_ptr<buffer::Buffer>& mBufferRef;
+    uint8_t mMode: 7;
+    bool mOwnsBuffer: 1;
 };
 
+inline Serializer::Serializer()
+    : mReadPos(0), mBufferRef(mBuffer), mMode(Write), mOwnsBuffer(true)
+{
+    realloc(16384);
+    mValid = NoData;
+}
+
+inline Serializer::Serializer(const std::shared_ptr<buffer::Buffer>& buffer)
+    : mReadPos(0), mBuffer(buffer), mBufferRef(mBuffer), mMode(Read), mOwnsBuffer(true)
+{
+    if (!mBuffer->size()) {
+        mBuffer.reset();
+        mValid = Invalid;
+    } else {
+        mValid = DataReady;
+    }
+}
+
+inline Serializer::Serializer(std::shared_ptr<buffer::Buffer>& buffer, uint8_t mode)
+    : mReadPos(0), mBufferRef(buffer), mMode(mode), mOwnsBuffer(false)
+{
+    if (!(mMode & Truncate))
+        mBuffer = buffer;
+    if (!mBuffer->max())
+        mBuffer.reset();
+    if (!mBuffer) {
+        if (mMode & Write) {
+            realloc(16384);
+            mValid = NoData;
+        } else {
+            mValid = Invalid;
+        }
+    } else if (!mBuffer->size()) {
+        mValid = NoData;
+    } else {
+        mValid = DataReady;
+    }
+}
+
 inline Serializer::Serializer(const fs::Path& path, uint8_t mode)
-    : mPath(path), mReadPos(0), mMode(mode)
+    : mPath(path), mReadPos(0), mBufferRef(mBuffer), mMode(mode), mOwnsBuffer(true)
 {
     if (mMode & Truncate)
         mPath.remove();
     if (mMode & Read)
         mBuffer = mPath.read();
     if (!mBuffer) {
-        if (mPath.type() == fs::Path::Nonexistant) {
+        if (mPath.type() == fs::Path::Nonexistant && (mMode & Write)) {
             realloc(16384);
             mValid = NoData;
         } else {
@@ -90,9 +141,19 @@ inline Serializer::Serializer(const fs::Path& path, uint8_t mode)
 
 inline Serializer::~Serializer()
 {
+    close();
+}
+
+inline void Serializer::close()
+{
+    if (mValid == Invalid)
+        return;
     if (mMode & Write && !mPath.isEmpty()) {
         mPath.write(mBuffer);
     }
+    if (!mOwnsBuffer)
+        mBufferRef = mBuffer;
+    mValid = Invalid;
 }
 
 Serializer::ValidType Serializer::valid() const

@@ -61,14 +61,27 @@ int main(int argc, char** argv)
         serializer::Serializer s1(fs::Path("/tmp/reckoning_serialize"), serializer::Serializer::Write | serializer::Serializer::Truncate);
         assert(s1.isValid());
         s1 << "ting" << 123;
-    }
-    {
+        s1.close();
+
         serializer::Serializer s2(fs::Path("/tmp/reckoning_serialize"));
         assert(s2.valid() == serializer::Serializer::DataReady);
         std::string str;
         int i;
         s2 >> str >> i;
-        printf("deserialized %s %d\n", str.c_str(), i);
+        printf("file deserialized %s %d\n", str.c_str(), i);
+    }
+    {
+        serializer::Serializer s3;
+        assert(s3.isValid());
+        s3 << "ting" << 123;
+        s3.close();
+
+        serializer::Serializer s4(s3.buffer());
+        assert(s4.valid() == serializer::Serializer::DataReady);
+        std::string str;
+        int i;
+        s4 >> str >> i;
+        printf("buffer deserialized %s %d\n", str.c_str(), i);
     }
 
     auto args = reckoning::args::Parser::parse(argc, argv);
