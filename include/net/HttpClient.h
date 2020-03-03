@@ -8,10 +8,16 @@
 #include <vector>
 #include <string>
 
+typedef void CURL;
+typedef void CURLM;
+typedef int curl_socket_t;
+
 namespace reckoning {
 namespace net {
 
 struct HttpCurlInfo;
+struct HttpConnectionInfo;
+class CurlTimer;
 
 class HttpClient : public std::enable_shared_from_this<HttpClient>, public util::Creatable<HttpClient>
 {
@@ -40,30 +46,32 @@ public:
     void write(const std::shared_ptr<buffer::Buffer>& buffer);
     void write(const uint8_t* data, size_t bytes);
     void write(const char* data, size_t bytes);
+    void endWrite();
 
     event::Signal<Response&&>& onResponse();
     event::Signal<std::shared_ptr<buffer::Buffer>&&>& onBodyData();
-    event::Signal<>& onBodyEnd();
-
-    enum State {
-        Idle,
-        Connected,
-        Closed,
-        Error
-    };
-    event::Signal<State>& onStateChanged();
-    State state() const;
+    event::Signal<>& onComplete();
+    event::Signal<std::string&&>& onError();
 
     void init();
 
 protected:
-    HttpClient(const std::string& url, Method method = Get);
-    HttpClient(const std::string& url, const Headers& headers = Headers(), Method method = Get);
+    HttpClient(const std::string& url);
+    HttpClient(const std::string& url, Method method);
+    HttpClient(const std::string& url, const Headers& headers);
+    HttpClient(const std::string& url, const Headers& headers, Method method);
 
 private:
     static void ensureCurlInfo();
 
     void connect(const std::string& url, const Headers& headers, Method method);
+    static size_t easyReadCallback(void *dest, size_t size, size_t nmemb, void *userp);
+    static size_t easyHeaderCallback(char *buffer, size_t size, size_t nmemb, void *userdata);
+    static size_t easyWriteCallback(void *ptr, size_t size, size_t nmemb, void *data);
+    static int multiSocketCallback(CURL* easy, curl_socket_t socket, int what, void* globalSocketData, void* perSocketData);
+    static int multiTimerCallback(CURLM* multi, long timeoutMs, void* timerData);
+    static void socketEventCallback(int fd, uint8_t flags);
+    static void checkMultiInfo();
 
 private:
     std::string mUrl;
@@ -72,9 +80,18 @@ private:
 
     event::Signal<Response&&> mResponse;
     event::Signal<std::shared_ptr<buffer::Buffer>&&> mBodyData;
-    event::Signal<> mBodyEnd;
-    event::Signal<State> mStateChanged;
-    State mState;
+    event::Signal<> mComplete;
+    event::Signal<std::string&&> mError;
+
+    bool mPaused { false };
+    bool mWriteEnd { false };
+    size_t mBufferPos { 0 };
+    size_t mBufferOffset { 0 };
+    std::vector<std::shared_ptr<buffer::Buffer> > mBuffers;
+
+    HttpConnectionInfo* mConnectionInfo { nullptr };
+
+    friend class CurlTimer;
 };
 
 inline event::Signal<HttpClient::Response&&>& HttpClient::onResponse()
@@ -87,19 +104,14 @@ inline event::Signal<std::shared_ptr<buffer::Buffer>&&>& HttpClient::onBodyData(
     return mBodyData;
 }
 
-inline event::Signal<>& HttpClient::onBodyEnd()
+inline event::Signal<>& HttpClient::onComplete()
 {
-    return mBodyEnd;
+    return mComplete;
 }
 
-inline event::Signal<HttpClient::State>& HttpClient::onStateChanged()
+inline event::Signal<std::string&&>& HttpClient::onError()
 {
-    return mStateChanged;
-}
-
-inline HttpClient::State HttpClient::state() const
-{
-    return mState;
+    return mError;
 }
 
 template<typename T, typename U>

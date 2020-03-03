@@ -12,7 +12,7 @@ using namespace reckoning::net;
 using namespace reckoning::log;
 
 inline WebSocketClient::WebSocketClient(const std::string& url)
-    : mState(Idle), mBufferOffset(0), mCtx(nullptr)
+    : mBufferOffset(0), mCtx(nullptr), mUpgraded(false)
 {
     uint8_t clientKey[16];
     uint8_t encodedClientKey[25];
@@ -108,68 +108,69 @@ inline WebSocketClient::WebSocketClient(const std::string& url)
     mHttp = HttpClient::create(url, headers);
 
     mHttp->onResponse().connect([this, encodedClientKey, encodedLength](HttpClient::Response&& response) {
-            // verify accept key
-            const auto& accept = response.headers.find("sec-websocket-accept");
-            if (accept.empty()) {
-                // welp
-                Log(Log::Error) << "No websocket accept key found";
-                if (mCtx) {
-                    wslay_event_context_free(mCtx);
-                    mCtx = nullptr;
-                }
-                mHttp.reset();
+        // verify accept key
+        const auto& accept = response.headers.find("sec-websocket-accept");
+        if (accept.empty()) {
+            // welp
+            Log(Log::Error) << "No websocket accept key found";
+            if (mCtx) {
+                wslay_event_context_free(mCtx);
+                mCtx = nullptr;
             }
+            mHttp.reset();
+        }
 
-            static const char* magic = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+        static const char* magic = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
-            uint8_t digest[SHA_DIGEST_LENGTH];
-            SHA_CTX sha1ctx;
-            SHA1_Init(&sha1ctx);
-            SHA1_Update(&sha1ctx, encodedClientKey, encodedLength);
-            SHA1_Update(&sha1ctx, magic, 36);
-            SHA1_Final(digest, &sha1ctx);
-            uint8_t b64digest[28];
-            //memset(b64digest, '\0', sizeof(b64digest));
-            size_t b64length = util::base64::encode(digest, sizeof(digest), b64digest, sizeof(b64digest));
-            assert(b64length > sizeof(digest) && b64length <= sizeof(b64digest));
-            if (b64length != accept.size() || memcmp(b64digest, &accept[0], b64length) != 0) {
-                // failed to verify
-                Log(Log::Error) << "Accept verify failed" << std::string(reinterpret_cast<char*>(b64digest), b64length) << accept;
-                if (mCtx) {
-                    wslay_event_context_free(mCtx);
-                    mCtx = nullptr;
-                }
-                mHttp.reset();
-                return;
+        uint8_t digest[SHA_DIGEST_LENGTH];
+        SHA_CTX sha1ctx;
+        SHA1_Init(&sha1ctx);
+        SHA1_Update(&sha1ctx, encodedClientKey, encodedLength);
+        SHA1_Update(&sha1ctx, magic, 36);
+        SHA1_Final(digest, &sha1ctx);
+        uint8_t b64digest[28];
+        //memset(b64digest, '\0', sizeof(b64digest));
+        size_t b64length = util::base64::encode(digest, sizeof(digest), b64digest, sizeof(b64digest));
+        assert(b64length > sizeof(digest) && b64length <= sizeof(b64digest));
+        if (b64length != accept.size() || memcmp(b64digest, &accept[0], b64length) != 0) {
+            // failed to verify
+            Log(Log::Error) << "Accept verify failed" << std::string(reinterpret_cast<char*>(b64digest), b64length) << accept;
+            if (mCtx) {
+                wslay_event_context_free(mCtx);
+                mCtx = nullptr;
             }
-            // we good
-            mState = Upgraded;
-            mStateChanged.emit(Upgraded);
-            write();
-        });
+            mHttp.reset();
+            return;
+        }
+        // we good
+        mUpgraded = true;
+        write();
+    });
+    mHttp->onComplete().connect([this]() {
+        mComplete.emit();
+    });
+    mHttp->onError().connect([this](std::string&& err) {
+        mError.emit(std::move(err));
+    });
     mHttp->onBodyData().connect([this](std::shared_ptr<buffer::Buffer>&& buffer) {
-            if (mState != Upgraded || !wslay_event_want_read(mCtx))
-                return;
-            //mData.emit(std::move(buffer));
-            assert(buffer);
-            mReadBuffers.push(std::move(buffer));
-            while (!mReadBuffers.empty()) {
-                wslay_event_recv(mCtx);
-                if (!wslay_event_want_read(mCtx))
-                    mReadBuffers = {};
-            }
-        });
-    mHttp->onStateChanged().connect([this](HttpClient::State state) {
-            mState = static_cast<WebSocketClient::State>(state);
-            mStateChanged.emit(static_cast<WebSocketClient::State>(state));
-            if (state == HttpClient::Closed || state == HttpClient::Error) {
-                if (mCtx) {
-                    wslay_event_context_free(mCtx);
-                    mCtx = nullptr;
-                }
-                mHttp.reset();
-            }
-        });
+        if (!mUpgraded || !wslay_event_want_read(mCtx))
+            return;
+        //mData.emit(std::move(buffer));
+        assert(buffer);
+        mReadBuffers.push(std::move(buffer));
+        while (!mReadBuffers.empty()) {
+            wslay_event_recv(mCtx);
+            if (!wslay_event_want_read(mCtx))
+                mReadBuffers = {};
+        }
+    });
+    mHttp->onComplete().connect([this]() {
+        if (mCtx) {
+            wslay_event_context_free(mCtx);
+            mCtx = nullptr;
+        }
+        mHttp.reset();
+    });
 }
 
 void WebSocketClient::close()
@@ -180,6 +181,7 @@ void WebSocketClient::close()
     mHttp.reset();
     wslay_event_context_free(mCtx);
     mCtx = nullptr;
+    mUpgraded = false;
 }
 
 void WebSocketClient::write()

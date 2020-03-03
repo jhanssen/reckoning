@@ -91,10 +91,10 @@ int main(int argc, char** argv)
         log::Log(log::Log::Error) << "freeforms" << args.freeformSize() << args.freeformValue(0);
     }
 
-    return 0;
 
     std::shared_ptr<event::Loop> loop = event::Loop::create();
 
+    /*
     auto conn = sig.connect([](int i, Test&& t) {
             Log(Log::Info) << "sig" << i << t.str();
         });
@@ -120,7 +120,22 @@ int main(int argc, char** argv)
         }, Test("timer"));
     loop->send([](Test&& t) {
             Log(Log::Info) << "s" << t.str();
-        }, Test("send"));
+            }, Test("send"));
+    */
+
+    FILE* f = fopen("/tmp/data.html", "w");
+    auto http = net::HttpClient::create("http://www.vg.no/");
+    http->onResponse().connect([](net::HttpClient::Response&& response) {
+        printf("responsey %d\n", response.status);
+    });
+    http->onComplete().connect([f]() {
+        fclose(f);
+        printf("complete\n");
+    });
+    http->onBodyData().connect([f](std::shared_ptr<buffer::Buffer>&& buffer) {
+        printf("got body %zu\n", buffer->size());
+        fwrite(buffer->data(), buffer->size(), 1, f);
+    });
 
     /*
     std::shared_ptr<net::TcpSocket> socket = net::TcpSocket::create();
@@ -228,7 +243,7 @@ int main(int argc, char** argv)
     // std::shared_ptr<buffer::Buffer> buf1, buf2;
     // auto buf3 = buffer::Buffer::concat(buf1, buf2);
 
-    hey.join();
+    // hey.join();
 
     return loop->execute(60000ms);
 }

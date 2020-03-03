@@ -22,15 +22,8 @@ public:
     void close();
 
     event::Signal<std::shared_ptr<buffer::Buffer>&&>& onMessage();
-    enum State {
-        Idle,
-        Connected,
-        Upgraded,
-        Closed,
-        Error
-    };
-    event::Signal<State>& onStateChanged();
-    State state() const;
+    event::Signal<>& onComplete();
+    event::Signal<std::string&&>& onError();
 
     void write(std::shared_ptr<buffer::Buffer>&& buffer);
     void write(const std::shared_ptr<buffer::Buffer>& buffer);
@@ -46,11 +39,12 @@ private:
 private:
     std::shared_ptr<HttpClient> mHttp;
     event::Signal<std::shared_ptr<buffer::Buffer>&&> mMessage;
-    event::Signal<State> mStateChanged;
-    State mState;
+    event::Signal<> mComplete;
+    event::Signal<std::string&&> mError;
     size_t mBufferOffset;
     std::queue<std::shared_ptr<buffer::Buffer> > mReadBuffers, mWriteBuffers;
     wslay_event_context_ptr mCtx;
+    bool mUpgraded;
 };
 
 inline WebSocketClient::~WebSocketClient()
@@ -62,14 +56,14 @@ inline event::Signal<std::shared_ptr<buffer::Buffer>&&>& WebSocketClient::onMess
     return mMessage;
 }
 
-inline event::Signal<WebSocketClient::State>& WebSocketClient::onStateChanged()
+inline event::Signal<>& WebSocketClient::onComplete()
 {
-    return mStateChanged;
+    return mComplete;
 }
 
-inline WebSocketClient::State WebSocketClient::state() const
+inline event::Signal<std::string&&>& WebSocketClient::onError()
 {
-    return mState;
+    return mError;
 }
 
 inline void WebSocketClient::write(std::shared_ptr<buffer::Buffer>&& buffer)

@@ -389,7 +389,7 @@ inline void Loop::removeFd(int fd)
     auto it = mFds.begin();
     auto end = mFds.cend();
     while (it != end) {
-        if (it->first == mFd) {
+        if (it->first == fd) {
             mFds.erase(it);
             break;
         }
@@ -398,7 +398,7 @@ inline void Loop::removeFd(int fd)
     it = mPendingFds.begin();
     end = mPendingFds.cend();
     while (it != end) {
-        if (it->first == mFd) {
+        if (it->first == fd) {
             mPendingFds.erase(it);
             break;
         }
@@ -408,13 +408,13 @@ inline void Loop::removeFd(int fd)
     auto uit = mPendingFds.begin();
     const auto uend = mPendingFds.cend();
     while (uit != uend) {
-        if (uit->first == mFd) {
+        if (uit->first == fd) {
             mPendingFds.erase(uit);
             break;
         }
         ++uit;
     }
-    mRemovedFds.push_back(mFd);
+    mRemovedFds.push_back(fd);
     wakeup();
 }
 
