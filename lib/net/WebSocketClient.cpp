@@ -23,6 +23,8 @@ WebSocketClient::WebSocketClient(const std::string& url)
     assert(encodedLength > sizeof(clientKey) && encodedLength < sizeof(encodedClientKey));
     encodedClientKey[encodedLength] = '\0';
 
+    mLoop = event::Loop::loop();
+
     auto recvCallback = [](wslay_event_context_ptr ctx, uint8_t* data, size_t len, int flags, void* userData) -> ssize_t {
         WebSocketClient* ws = static_cast<WebSocketClient*>(userData);
         if (!ws->mHttp) {
@@ -99,9 +101,10 @@ WebSocketClient::WebSocketClient(const std::string& url)
                 ws->mFdWriteBuffers.push(buf);
 
                 // tell our event loop that we want to know about write availability
-                auto loop = event::Loop::loop();
-
-                loop->addFd(fd, event::Loop::FdWrite, std::bind(&WebSocketClient::writeCallback, ws, std::placeholders::_1, std::placeholders::_2));
+                auto loop = ws->mLoop.lock();
+                if (loop) {
+                    loop->addFd(fd, event::Loop::FdWrite, std::bind(&WebSocketClient::writeCallback, ws, std::placeholders::_1, std::placeholders::_2));
+                }
                 break;
             }
         }
@@ -206,8 +209,10 @@ WebSocketClient::WebSocketClient(const std::string& url)
     });
     mHttp->onComplete().connect([this]() {
         if (mDupped != -1) {
-            auto loop = event::Loop::loop();
-            loop->removeFd(mDupped);
+            auto loop = mLoop.lock();
+            if (loop) {
+                loop->removeFd(mDupped);
+            }
 
             int e;
             eintrwrap(e, ::close(mDupped));
@@ -242,8 +247,10 @@ void WebSocketClient::close()
     if (!mHttp)
         return;
     if (mDupped != -1) {
-        auto loop = event::Loop::loop();
-        loop->removeFd(mDupped);
+        auto loop = mLoop.lock();
+        if (loop) {
+            loop->removeFd(mDupped);
+        }
 
         int e;
         eintrwrap(e, ::close(mDupped));
@@ -278,8 +285,10 @@ void WebSocketClient::write()
 void WebSocketClient::writeCallback(int fd, uint8_t flags)
 {
     if (flags & event::Loop::FdWrite) {
-        auto innerLoop = event::Loop::loop();
-        innerLoop->removeFd(fd);
+        auto loop = mLoop.lock();
+        if (loop) {
+            loop->removeFd(fd);
+        }
         // write some more
         int where = mFdWriteOffset;
         int e;
@@ -294,7 +303,9 @@ void WebSocketClient::writeCallback(int fd, uint8_t flags)
                 }
             } else if (e == EAGAIN || e == EWOULDBLOCK) {
                 // boo
-                innerLoop->addFd(fd, event::Loop::FdWrite, std::bind(&WebSocketClient::writeCallback, this, std::placeholders::_1, std::placeholders::_2));
+                if (loop) {
+                    loop->addFd(fd, event::Loop::FdWrite, std::bind(&WebSocketClient::writeCallback, this, std::placeholders::_1, std::placeholders::_2));
+                }
                 break;
             }
         }

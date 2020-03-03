@@ -2,6 +2,7 @@
 #define WEBSOCKETCLIENT_H
 
 #include <net/HttpClient.h>
+#include <event/Loop.h>
 #include <util/Creatable.h>
 #include <buffer/Buffer.h>
 #include <buffer/Pool.h>
@@ -48,6 +49,7 @@ private:
     bool mUpgraded;
     int mDupped;
     size_t mFdWriteOffset;
+    std::weak_ptr<event::Loop> mLoop;
 };
 
 inline WebSocketClient::~WebSocketClient()
