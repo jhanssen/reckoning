@@ -1,8 +1,8 @@
 #ifndef HTTPCLIENT_H
 #define HTTPCLIENT_H
 
-#include <net/TcpSocket.h>
 #include <buffer/Buffer.h>
+#include <event/Signal.h>
 #include <util/Creatable.h>
 #include <memory>
 #include <vector>

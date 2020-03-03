@@ -4,6 +4,7 @@
 #include <net/HttpClient.h>
 #include <event/Loop.h>
 #include <util/Creatable.h>
+#include <net/TcpSocket.h>
 #include <buffer/Buffer.h>
 #include <buffer/Pool.h>
 #include <queue>

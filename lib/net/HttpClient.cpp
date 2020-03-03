@@ -3,6 +3,7 @@
 #include <buffer/Builder.h>
 #include <event/Loop.h>
 #include <log/Log.h>
+#include <net/TcpSocket.h>
 #include <curl/curl.h>
 #include <regex>
 
@@ -254,7 +255,7 @@ int HttpClient::multiTimerCallback(CURLM* multi, long timeoutMs, void* timerData
 
 size_t HttpClient::easyWriteCallback(void *ptr, size_t size, size_t nmemb, void *data)
 {
-    auto buffer = buffer::Pool<4, 16384>::pool().get(size * nmemb);
+    auto buffer = buffer::Pool<20, net::TcpSocket::BufferSize>::pool().get(size * nmemb);
     buffer->assign(static_cast<uint8_t*>(ptr), size * nmemb);
 
     HttpConnectionInfo* conn = static_cast<HttpConnectionInfo*>(data);
@@ -427,7 +428,7 @@ void HttpClient::write(const uint8_t* data, size_t bytes)
 {
     if (!mConnectionInfo)
         return;
-    auto buffer = buffer::Pool<4, 16384>::pool().get(bytes);
+    auto buffer = buffer::Pool<20, net::TcpSocket::BufferSize>::pool().get(bytes);
     buffer->assign(data, bytes);
     mBuffers.push_back(buffer);
     if (mPaused) {
@@ -440,7 +441,7 @@ void HttpClient::write(const char* data, size_t bytes)
 {
     if (!mConnectionInfo)
         return;
-    auto buffer = buffer::Pool<4, 16384>::pool().get(bytes);
+    auto buffer = buffer::Pool<20, net::TcpSocket::BufferSize>::pool().get(bytes);
     buffer->assign(reinterpret_cast<const uint8_t*>(data), bytes);
     mBuffers.push_back(buffer);
     if (mPaused) {
