@@ -123,6 +123,7 @@ int main(int argc, char** argv)
             }, Test("send"));
     */
 
+    /*
     FILE* f = fopen("/tmp/data.html", "w");
     auto http = net::HttpClient::create("http://www.vg.no/");
     http->onResponse().connect([](net::HttpClient::Response&& response) {
@@ -132,10 +133,26 @@ int main(int argc, char** argv)
         fclose(f);
         printf("complete\n");
     });
+    http->onError().connect([](std::string&& err) {
+        printf("error %s\n", err.c_str());
+    });
     http->onBodyData().connect([f](std::shared_ptr<buffer::Buffer>&& buffer) {
         printf("got body %zu\n", buffer->size());
         fwrite(buffer->data(), buffer->size(), 1, f);
     });
+    */
+
+    auto ws = net::WebSocketClient::create("ws://demos.kaazing.com/echo");
+    ws->onMessage().connect([](std::shared_ptr<buffer::Buffer>&& msg) {
+        Log(Log::Info) << "ws msg" << msg->size();
+    });
+    ws->onError().connect([](std::string&& err) {
+        printf("error %s\n", err.c_str());
+    });
+    ws->onComplete().connect([]() {
+        Log(Log::Info) << "ws complete";
+    });
+    ws->write("foo bar", 7);
 
     /*
     std::shared_ptr<net::TcpSocket> socket = net::TcpSocket::create();

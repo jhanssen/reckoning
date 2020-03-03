@@ -12,6 +12,7 @@ using namespace reckoning::net;
 thread_local std::shared_ptr<HttpCurlInfo> tCurlInfo;
 
 class CurlTimer;
+struct HttpSocketInfo;
 
 namespace reckoning {
 namespace net {
@@ -28,10 +29,13 @@ struct HttpConnectionInfo
     std::string url;
     std::weak_ptr<HttpClient> http;
     char error[CURL_ERROR_SIZE];
+    curl_slist* outHeaders { nullptr };
 
     uint16_t status { 0 };
     std::string reason;
     HttpClient::Headers headers;
+
+    HttpSocketInfo* socketInfo { nullptr };
 };
 
 class CurlTimer : public event::Loop::Timer
@@ -111,6 +115,13 @@ void HttpClient::connect(const std::string& url, const Headers& headers, Method 
     conn->easy = curl_easy_init();
     conn->url = url;
     conn->http = shared_from_this();
+    if (!headers.empty()) {
+        for (const auto& h : headers) {
+            const std::string header = h.first + ": " + h.second;
+            conn->outHeaders = curl_slist_append(conn->outHeaders, header.c_str());
+        }
+        curl_easy_setopt(conn->easy, CURLOPT_HTTPHEADER, conn->outHeaders);
+    }
     curl_easy_setopt(conn->easy, CURLOPT_URL, conn->url.c_str());
     curl_easy_setopt(conn->easy, CURLOPT_WRITEFUNCTION, HttpClient::easyWriteCallback);
     curl_easy_setopt(conn->easy, CURLOPT_WRITEDATA, conn);
@@ -130,6 +141,9 @@ void HttpClient::connect(const std::string& url, const Headers& headers, Method 
     if (rc != CURLM_OK) {
         // bad
         curl_easy_cleanup(conn->easy);
+        if (conn->outHeaders) {
+            curl_slist_free_all(conn->outHeaders);
+        }
         delete conn;
         return;
     }
@@ -198,6 +212,7 @@ int HttpClient::multiSocketCallback(CURL* easy, curl_socket_t socket, int what, 
             socketInfo->easy = easy;
             socketInfo->http = connInfo->http;
             socketInfo->fd = socket;
+            connInfo->socketInfo = socketInfo;
             curl_multi_assign(curlInfo->multi, socket, socketInfo);
             loop->addFd(socket, curlToReckoning(what), std::bind(socketEventCallback, std::placeholders::_1, std::placeholders::_2));
         } else {
@@ -306,8 +321,10 @@ size_t HttpClient::easyHeaderCallback(char *buffer, size_t size, size_t nmemb, v
             }
         }
         assert(nsize >= split + 2);
-        conn->headers.add(header.substr(0, split),
-                          header.substr(split + 2, nsize - (split + 2)));
+        std::string headerKey = header.substr(0, split);
+        std::transform(headerKey.begin(), headerKey.end(), headerKey.begin(),
+                       [](unsigned char c){ return std::tolower(c); });
+        conn->headers.add(std::move(headerKey), header.substr(split + 2, nsize - (split + 2)));
     }
 
     return size * nmemb;
@@ -375,6 +392,10 @@ void HttpClient::checkMultiInfo()
 
             curl_multi_remove_handle(multi, easy);
             curl_easy_cleanup(easy);
+            if (conn->outHeaders) {
+                curl_slist_free_all(conn->outHeaders);
+            }
+
             delete conn;
         }
     }
@@ -437,4 +458,11 @@ void HttpClient::endWrite()
         curl_easy_pause(mConnectionInfo->easy, CURLPAUSE_CONT);
         mPaused = false;
     }
+}
+
+int HttpClient::fd() const
+{
+    if (!mConnectionInfo || !mConnectionInfo->socketInfo)
+        return -1;
+    return mConnectionInfo->socketInfo->fd;
 }

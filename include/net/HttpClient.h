@@ -27,10 +27,10 @@ public:
     struct Headers : public std::vector<std::pair<std::string, std::string> >
     {
         template<typename T, typename U>
-        void add(T key, U value);
+        void add(T&& key, U&& value);
 
         template<typename T>
-        std::string find(T key) const;
+        std::string find(T&& key) const;
     };
 
     struct Response
@@ -54,6 +54,8 @@ public:
     event::Signal<std::string&&>& onError();
 
     void init();
+
+    int fd() const;
 
 protected:
     HttpClient(const std::string& url);
@@ -115,13 +117,13 @@ inline event::Signal<std::string&&>& HttpClient::onError()
 }
 
 template<typename T, typename U>
-inline void HttpClient::Headers::add(T key, U value)
+inline void HttpClient::Headers::add(T&& key, U&& value)
 {
     push_back(std::make_pair(std::forward<typename std::decay<T>::type>(key), std::forward<typename std::decay<U>::type>(value)));
 }
 
 template<typename T>
-std::string HttpClient::Headers::find(T key) const
+std::string HttpClient::Headers::find(T&& key) const
 {
     const std::string keystr = std::forward<typename std::decay<T>::type>(key);
     for (auto header : *this) {

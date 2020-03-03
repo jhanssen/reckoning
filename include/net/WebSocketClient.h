@@ -42,9 +42,11 @@ private:
     event::Signal<> mComplete;
     event::Signal<std::string&&> mError;
     size_t mBufferOffset;
-    std::queue<std::shared_ptr<buffer::Buffer> > mReadBuffers, mWriteBuffers;
+    std::queue<std::shared_ptr<buffer::Buffer> > mReadBuffers, mWriteBuffers, mFdWriteBuffers;
     wslay_event_context_ptr mCtx;
     bool mUpgraded;
+    int mDupped;
+    size_t mFdWriteOffset;
 };
 
 inline WebSocketClient::~WebSocketClient()

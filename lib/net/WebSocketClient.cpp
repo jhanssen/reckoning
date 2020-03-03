@@ -1,18 +1,20 @@
 #include <net/WebSocketClient.h>
 #include <net/UriParser.h>
+#include <net/UriBuilder.h>
 #include <wslay/wslay.h>
 #include <buffer/Pool.h>
 #include <log/Log.h>
 #include <util/Random.h>
 #include <util/Base64.h>
+#include <util/Socket.h>
 #include <openssl/sha.h>
 
 using namespace reckoning;
 using namespace reckoning::net;
 using namespace reckoning::log;
 
-inline WebSocketClient::WebSocketClient(const std::string& url)
-    : mBufferOffset(0), mCtx(nullptr), mUpgraded(false)
+WebSocketClient::WebSocketClient(const std::string& url)
+    : mBufferOffset(0), mCtx(nullptr), mUpgraded(false), mDupped(-1), mFdWriteOffset(0)
 {
     uint8_t clientKey[16];
     uint8_t encodedClientKey[25];
@@ -59,7 +61,77 @@ inline WebSocketClient::WebSocketClient(const std::string& url)
             wslay_event_set_error(ctx, WSLAY_ERR_CALLBACK_FAILURE);
             return 0;
         }
-        ws->mHttp->write(data, len);
+
+        // if there's stuff in our pending queue, add to it
+        if (!ws->mFdWriteBuffers.empty()) {
+            auto buf = buffer::Pool<20, TcpSocket::BufferSize>::pool().get(len);
+            buf->assign(data, len);
+            ws->mFdWriteBuffers.push(buf);
+            return len;
+        }
+
+        int e;
+        if (ws->mDupped == -1) {
+            eintrwrap(e, ::dup(ws->mHttp->fd()));
+            if (e > 0) {
+                ws->mDupped = e;
+            } else {
+                // horrible badness
+                return 0;
+            }
+        }
+        const int fd = ws->mDupped;
+        int rem = len;
+        int off = 0;
+        for (;;) {
+            eintrwrap(e, ::write(fd, data + off, rem));
+            if (e > 0) {
+                rem -= e;
+                off += e;
+                if (!rem) {
+                    // all done
+                    return len;
+                }
+            } else if (e == EAGAIN || e == EWOULDBLOCK) {
+                // retry later
+                auto buf = buffer::Pool<20, TcpSocket::BufferSize>::pool().get(rem);
+                buf->assign(data + off, rem);
+                ws->mFdWriteBuffers.push(buf);
+
+                // tell our event loop that we want to know about write availability
+                auto loop = event::Loop::loop();
+
+                std::function<void(int, uint8_t)> onwrite;
+                onwrite = [ws, &onwrite](int fd, uint8_t flags) {
+                    if (flags & event::Loop::FdWrite) {
+                        auto innerLoop = event::Loop::loop();
+                        innerLoop->removeFd(fd);
+                        // write some more
+                        int where = ws->mFdWriteOffset;
+                        int e;
+                        while (!ws->mFdWriteBuffers.empty()) {
+                            const auto& buffer = ws->mFdWriteBuffers.front();
+                            eintrwrap(e, ::write(fd, buffer->data() + where, buffer->size() - where));
+                            if (e > 0) {
+                                where += e;
+                                if (where == buffer->size()) {
+                                    ws->mFdWriteBuffers.pop();
+                                    where = 0;
+                                }
+                            } else if (e == EAGAIN || e == EWOULDBLOCK) {
+                                // boo
+                                innerLoop->addFd(fd, event::Loop::FdWrite, onwrite);
+                                break;
+                            }
+                        }
+                        ws->mFdWriteOffset = where;
+                    }
+                };
+
+                loop->addFd(fd, event::Loop::FdWrite, onwrite);
+                break;
+            }
+        }
         return len;
     };
 
@@ -95,17 +167,30 @@ inline WebSocketClient::WebSocketClient(const std::string& url)
 
     wslay_event_context_client_init(&mCtx, &callbacks, this);
 
-    UriParser uriParser(url);
+    UriParser uri(url);
 
     // make an upgrade request
     HttpClient::Headers headers;
-    headers.add("Host", uriParser.host());
+    headers.add("Host", uri.host());
     headers.add("Upgrade", "websocket");
     headers.add("Connection", "upgrade");
     headers.add("Sec-WebSocket-Key", reinterpret_cast<char*>(encodedClientKey));
     headers.add("Sec-WebSocket-Version", "13");
 
-    mHttp = HttpClient::create(url, headers);
+    std::string scheme;
+    if (uri.scheme() == "ws") {
+        scheme = "http";
+    } else if (uri.scheme() == "wss") {
+        scheme = "https";
+    } else {
+        // invalid scheme maybe?
+        scheme = uri.scheme();
+    }
+
+    const std::string httpUrl = buildUri(scheme, uri.host(), uri.port(), uri.path(), uri.query(), uri.fragment());
+    printf("translated uri '%s'\n", httpUrl.c_str());
+
+    mHttp = HttpClient::create(httpUrl, headers);
 
     mHttp->onResponse().connect([this, encodedClientKey, encodedLength](HttpClient::Response&& response) {
         // verify accept key
@@ -147,6 +232,16 @@ inline WebSocketClient::WebSocketClient(const std::string& url)
         write();
     });
     mHttp->onComplete().connect([this]() {
+        if (mDupped != -1) {
+            int e;
+            eintrwrap(e, ::close(mDupped));
+            mDupped = -1;
+        }
+        if (mCtx) {
+            wslay_event_context_free(mCtx);
+            mCtx = nullptr;
+        }
+        mHttp.reset();
         mComplete.emit();
     });
     mHttp->onError().connect([this](std::string&& err) {
@@ -164,13 +259,6 @@ inline WebSocketClient::WebSocketClient(const std::string& url)
                 mReadBuffers = {};
         }
     });
-    mHttp->onComplete().connect([this]() {
-        if (mCtx) {
-            wslay_event_context_free(mCtx);
-            mCtx = nullptr;
-        }
-        mHttp.reset();
-    });
 }
 
 void WebSocketClient::close()
@@ -186,7 +274,7 @@ void WebSocketClient::close()
 
 void WebSocketClient::write()
 {
-    if (!mHttp || !mCtx)
+    if (!mHttp || !mCtx || !mUpgraded)
         return;
     while (!mWriteBuffers.empty()) {
         auto msg = mWriteBuffers.front();

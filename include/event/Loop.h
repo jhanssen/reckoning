@@ -122,6 +122,8 @@ public:
     enum FdFlag { FdError = 0x1, FdRead = 0x2, FdWrite = 0x4 };
     template<typename T, typename std::enable_if<std::is_invocable_r<void, T, int, uint8_t>::value, T>::type* = nullptr>
     FD addFd(int fd, uint8_t flags, T&& callback);
+    template<typename T, typename std::enable_if<std::is_invocable_r<void, T, int, uint8_t>::value, T>::type* = nullptr>
+    FD addFd(int fd, uint8_t flags, const T& callback);
     void updateFd(int fd, uint8_t flags);
     void removeFd(int fd);
 
@@ -349,6 +351,25 @@ inline Loop::FD Loop::addFd(int fd, uint8_t flags, T&& callback)
 
     std::lock_guard<std::mutex> locker(mMutex);
     mPendingFds.push_back(std::make_pair(fd, std::forward<T>(callback)));
+    if (flags & FdWrite) {
+        mUpdateFds.push_back(std::make_pair(fd, FdWrite | ((flags & FdRead) ? FdRead : 0)));
+    }
+    wakeup();
+
+    return r;
+}
+
+template<typename T, typename std::enable_if<std::is_invocable_r<void, T, int, uint8_t>::value, T>::type*>
+inline Loop::FD Loop::addFd(int fd, uint8_t flags, const T& callback)
+{
+    assert(!(flags & FdError));
+
+    FD r;
+    r.mFd = fd;
+    r.mLoop = shared_from_this();
+
+    std::lock_guard<std::mutex> locker(mMutex);
+    mPendingFds.push_back(std::make_pair(fd, callback));
     if (flags & FdWrite) {
         mUpdateFds.push_back(std::make_pair(fd, FdWrite | ((flags & FdRead) ? FdRead : 0)));
     }
