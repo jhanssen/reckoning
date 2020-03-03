@@ -23,8 +23,6 @@ using namespace reckoning::log;
 
 void Loop::init()
 {
-    abort();
-
     tLoop = shared_from_this();
 
     mFd = epoll_create1(0);
@@ -130,6 +128,19 @@ int Loop::execute(std::chrono::milliseconds timeout)
                 fds.reserve(mPendingFds.size());
                 for (const auto &fd : mPendingFds) {
                     fds.push_back(fd.first);
+                }
+                // these might be duplicated in mFds (in case someone removes and readds before the event loop has a time to process
+                // so we need to remove them if they do
+                auto fit = mFds.begin();
+                while (fit != mFds.end()) {
+                    for (const auto& pending : mPendingFds) {
+                        if (pending.first == fit->first) {
+                            // remove it
+                            fit = mFds.erase(fit);
+                        } else {
+                            ++fit;
+                        }
+                    }
                 }
                 mFds.insert(mFds.end(), std::make_move_iterator(mPendingFds.begin()), std::make_move_iterator(mPendingFds.end()));
                 mPendingFds.clear();

@@ -375,6 +375,11 @@ inline Loop::FD Loop::addFd(int fd, uint8_t flags, T&& callback)
     if (flags & FdWrite) {
         mUpdateFds.push_back(std::make_pair(fd, FdWrite | ((flags & FdRead) ? FdRead : 0)));
     }
+    // take it out of mRemovedFds if it exists
+    auto rit = std::find(mRemovedFds.begin(), mRemovedFds.end(), fd);
+    if (rit != mRemovedFds.end()) {
+        mRemovedFds.erase(rit);
+    }
     wakeup();
 
     return r;
@@ -393,6 +398,11 @@ inline Loop::FD Loop::addFd(int fd, uint8_t flags, const T& callback)
     mPendingFds.push_back(std::make_pair(fd, callback));
     if (flags & FdWrite) {
         mUpdateFds.push_back(std::make_pair(fd, FdWrite | ((flags & FdRead) ? FdRead : 0)));
+    }
+    // take it out of mRemovedFds if it exists
+    auto rit = std::find(mRemovedFds.begin(), mRemovedFds.end(), fd);
+    if (rit != mRemovedFds.end()) {
+        mRemovedFds.erase(rit);
     }
     wakeup();
 
@@ -447,11 +457,11 @@ inline void Loop::removeFd(int fd)
         ++it;
     }
     // remove from mUpdateFds if it's there
-    auto uit = mPendingFds.begin();
-    const auto uend = mPendingFds.cend();
+    auto uit = mUpdateFds.begin();
+    const auto uend = mUpdateFds.cend();
     while (uit != uend) {
         if (uit->first == fd) {
-            mPendingFds.erase(uit);
+            mUpdateFds.erase(uit);
             break;
         }
         ++uit;
