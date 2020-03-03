@@ -290,8 +290,8 @@ void WebSocketClient::writeCallback(int fd, uint8_t flags)
             loop->removeFd(fd);
         }
         // write some more
-        int where = mFdWriteOffset;
         int e;
+        size_t where = mFdWriteOffset;
         while (!mFdWriteBuffers.empty()) {
             const auto& buffer = mFdWriteBuffers.front();
             eintrwrap(e, ::write(fd, buffer->data() + where, buffer->size() - where));
