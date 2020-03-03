@@ -23,6 +23,8 @@ using namespace reckoning::log;
 
 void Loop::init()
 {
+    abort();
+
     tLoop = shared_from_this();
 
     mFd = epoll_create1(0);

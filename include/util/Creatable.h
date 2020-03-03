@@ -8,7 +8,7 @@ namespace reckoning {
 namespace util {
 
 template<typename T>
-using init_t = decltype( std::declval<T&>().init() );
+using init_t = decltype(std::declval<T&>().init());
 
 template<typename T>
 constexpr bool has_init = is_detected<init_t, T>::value;

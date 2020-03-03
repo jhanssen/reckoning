@@ -54,6 +54,8 @@ public:
     event::Signal<State>& onStateChanged();
     State state() const;
 
+    void init();
+
 protected:
     HttpClient(const std::string& url, Method method = Get);
     HttpClient(const std::string& url, const Headers& headers = Headers(), Method method = Get);
@@ -64,13 +66,15 @@ private:
     void connect(const std::string& url, const Headers& headers, Method method);
 
 private:
+    std::string mUrl;
+    Headers mHeaders;
+    Method mMethod;
+
     event::Signal<Response&&> mResponse;
     event::Signal<std::shared_ptr<buffer::Buffer>&&> mBodyData;
     event::Signal<> mBodyEnd;
     event::Signal<State> mStateChanged;
     State mState;
-
-    thread_local static std::shared_ptr<HttpCurlInfo> sCurlInfo;
 };
 
 inline event::Signal<HttpClient::Response&&>& HttpClient::onResponse()

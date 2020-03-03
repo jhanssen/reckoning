@@ -94,7 +94,6 @@ int main(int argc, char** argv)
     return 0;
 
     std::shared_ptr<event::Loop> loop = event::Loop::create();
-    loop->init();
 
     auto conn = sig.connect([](int i, Test&& t) {
             Log(Log::Info) << "sig" << i << t.str();

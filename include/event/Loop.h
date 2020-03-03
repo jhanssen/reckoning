@@ -71,6 +71,8 @@ public:
         TimerFlag flag() const { return mFlag; }
         std::shared_ptr<Loop> loop() const { return mLoop.lock(); }
 
+        void updateTimeout(std::chrono::milliseconds timeout) { assert(!isActive()); mTimeout = timeout; }
+
         void stop();
         bool isActive() const;
 
@@ -121,6 +123,7 @@ public:
     template<typename T, typename std::enable_if<std::is_invocable_r<void, T, int, uint8_t>::value, T>::type* = nullptr>
     FD addFd(int fd, uint8_t flags, T&& callback);
     void updateFd(int fd, uint8_t flags);
+    void removeFd(int fd);
 
     int execute(std::chrono::milliseconds timeout = std::chrono::milliseconds{-1});
     void exit(int status = 0);
@@ -380,6 +383,41 @@ inline Loop::FD& Loop::FD::operator=(FD&& other)
     return *this;
 }
 
+inline void Loop::removeFd(int fd)
+{
+    std::lock_guard<std::mutex> locker(mMutex);
+    auto it = mFds.begin();
+    auto end = mFds.cend();
+    while (it != end) {
+        if (it->first == mFd) {
+            mFds.erase(it);
+            break;
+        }
+        ++it;
+    }
+    it = mPendingFds.begin();
+    end = mPendingFds.cend();
+    while (it != end) {
+        if (it->first == mFd) {
+            mPendingFds.erase(it);
+            break;
+        }
+        ++it;
+    }
+    // remove from mUpdateFds if it's there
+    auto uit = mPendingFds.begin();
+    const auto uend = mPendingFds.cend();
+    while (uit != uend) {
+        if (uit->first == mFd) {
+            mPendingFds.erase(uit);
+            break;
+        }
+        ++uit;
+    }
+    mRemovedFds.push_back(mFd);
+    wakeup();
+}
+
 inline void Loop::FD::remove()
 {
     if (mFd == -1)
@@ -387,37 +425,7 @@ inline void Loop::FD::remove()
     auto loop = mLoop.lock();
     if (!loop)
         return;
-    std::lock_guard<std::mutex> locker(loop->mMutex);
-    auto it = loop->mFds.begin();
-    auto end = loop->mFds.cend();
-    while (it != end) {
-        if (it->first == mFd) {
-            loop->mFds.erase(it);
-            break;
-        }
-        ++it;
-    }
-    it = loop->mPendingFds.begin();
-    end = loop->mPendingFds.cend();
-    while (it != end) {
-        if (it->first == mFd) {
-            loop->mPendingFds.erase(it);
-            break;
-        }
-        ++it;
-    }
-    // remove from mUpdateFds if it's there
-    auto uit = loop->mPendingFds.begin();
-    const auto uend = loop->mPendingFds.cend();
-    while (uit != uend) {
-        if (uit->first == mFd) {
-            loop->mPendingFds.erase(uit);
-            break;
-        }
-        ++uit;
-    }
-    loop->mRemovedFds.push_back(mFd);
-    loop->wakeup();
+    loop->removeFd(mFd);
     mFd = -1;
 }
 
