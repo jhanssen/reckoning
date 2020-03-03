@@ -52,6 +52,7 @@ private:
 
 inline WebSocketClient::~WebSocketClient()
 {
+    close();
 }
 
 inline event::Signal<std::shared_ptr<buffer::Buffer>&&>& WebSocketClient::onMessage()

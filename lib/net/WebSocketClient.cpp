@@ -206,6 +206,9 @@ WebSocketClient::WebSocketClient(const std::string& url)
     });
     mHttp->onComplete().connect([this]() {
         if (mDupped != -1) {
+            auto loop = event::Loop::loop();
+            loop->removeFd(mDupped);
+
             int e;
             eintrwrap(e, ::close(mDupped));
             mDupped = -1;
@@ -238,6 +241,14 @@ void WebSocketClient::close()
 {
     if (!mHttp)
         return;
+    if (mDupped != -1) {
+        auto loop = event::Loop::loop();
+        loop->removeFd(mDupped);
+
+        int e;
+        eintrwrap(e, ::close(mDupped));
+        mDupped = -1;
+    }
     assert(mCtx != nullptr);
     mHttp.reset();
     wslay_event_context_free(mCtx);
