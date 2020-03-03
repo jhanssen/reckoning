@@ -303,6 +303,7 @@ size_t HttpClient::easyHeaderCallback(char *buffer, size_t size, size_t nmemb, v
                 return 0;
             }
         }
+        assert(nsize >= split + 2);
         conn->headers.add(header.substr(0, split),
                           header.substr(split + 2, nsize - (split + 2)));
     }
