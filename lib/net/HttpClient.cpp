@@ -340,6 +340,8 @@ size_t HttpClient::easyReadCallback(void *dest, size_t size, size_t nmemb, void 
             http->mBuffers.clear();
             http->mBufferPos = 0;
         }
+    } else {
+        http->mBufferOffset += toread;
     }
     return toread;
 }
