@@ -1,1 +1,1 @@
-set(NET_SOURCES Resolver.cpp HttpClient.cpp HttpServer.cpp IPAddress.cpp WebSocketClient.cpp WebSocketServer.cpp TcpSocket.cpp TcpServer.cpp)
+set(NET_SOURCES Resolver.cpp HttpClient.cpp IPAddress.cpp WebSocketClient.cpp TcpSocket.cpp TcpServer.cpp)

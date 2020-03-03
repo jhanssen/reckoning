@@ -1,4 +1,5 @@
 #include <net/WebSocketClient.h>
+#include <net/UriParser.h>
 #include <wslay/wslay.h>
 #include <buffer/Pool.h>
 #include <log/Log.h>
@@ -10,11 +11,9 @@ using namespace reckoning;
 using namespace reckoning::net;
 using namespace reckoning::log;
 
-void WebSocketClient::connect(const std::string& host, uint16_t port, const std::string& query)
+inline WebSocketClient::WebSocketClient(const std::string& url)
+    : mState(Idle), mBufferOffset(0), mCtx(nullptr)
 {
-    if (mHttp)
-        return;
-
     uint8_t clientKey[16];
     uint8_t encodedClientKey[25];
     util::Random::random().fill(clientKey, sizeof(clientKey));
@@ -96,7 +95,18 @@ void WebSocketClient::connect(const std::string& host, uint16_t port, const std:
 
     wslay_event_context_client_init(&mCtx, &callbacks, this);
 
-    mHttp = HttpClient::create();
+    UriParser uriParser(url);
+
+    // make an upgrade request
+    HttpClient::Headers headers;
+    headers.add("Host", uriParser.host());
+    headers.add("Upgrade", "websocket");
+    headers.add("Connection", "upgrade");
+    headers.add("Sec-WebSocket-Key", reinterpret_cast<char*>(encodedClientKey));
+    headers.add("Sec-WebSocket-Version", "13");
+
+    mHttp = HttpClient::create(url, headers);
+
     mHttp->onResponse().connect([this, encodedClientKey, encodedLength](HttpClient::Response&& response) {
             // verify accept key
             const auto& accept = response.headers.find("sec-websocket-accept");
@@ -160,15 +170,6 @@ void WebSocketClient::connect(const std::string& host, uint16_t port, const std:
                 mHttp.reset();
             }
         });
-    mHttp->connect(host, port);
-    // make an upgrade request
-    HttpClient::Headers headers;
-    headers.add("Host", host);
-    headers.add("Upgrade", "websocket");
-    headers.add("Connection", "upgrade");
-    headers.add("Sec-WebSocket-Key", reinterpret_cast<char*>(encodedClientKey));
-    headers.add("Sec-WebSocket-Version", "13");
-    mHttp->get(HttpClient::v11, query, headers);
 }
 
 void WebSocketClient::close()
@@ -176,10 +177,9 @@ void WebSocketClient::close()
     if (!mHttp)
         return;
     assert(mCtx != nullptr);
-    mHttp->close();
+    mHttp.reset();
     wslay_event_context_free(mCtx);
     mCtx = nullptr;
-    mHttp.reset();
 }
 
 void WebSocketClient::write()

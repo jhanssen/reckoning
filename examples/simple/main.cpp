@@ -4,9 +4,7 @@
 #include <net/TcpSocket.h>
 #include <net/TcpServer.h>
 #include <net/HttpClient.h>
-#include <net/HttpServer.h>
 #include <net/WebSocketClient.h>
-#include <net/WebSocketServer.h>
 #include <serializer/Serializer.h>
 #include <args/Args.h>
 #include <args/Parser.h>
@@ -188,8 +186,8 @@ int main(int argc, char** argv)
         });
         server->listen(8998);
     */
-    auto server = net::HttpServer::create();
     /*
+    auto server = net::HttpServer::create();
     server->onRequest().connect([](std::shared_ptr<net::HttpServer::Request>&& req) {
             Log(Log::Error) << "http server request" << req->query;
             req->onBody().connect([](std::shared_ptr<buffer::Buffer>&& buffer) {
@@ -209,7 +207,6 @@ int main(int argc, char** argv)
     server->onError().connect([]() {
             Log(Log::Error) << "http server error";
             });
-    */
     server->listen(8998);
     auto wsserver = net::WebSocketServer::create(std::move(server));
     wsserver->onConnection().connect([](std::shared_ptr<net::WebSocketServer::Connection>&& conn) {
@@ -227,6 +224,7 @@ int main(int argc, char** argv)
     wsserver->onError().connect([]() {
             Log(Log::Error) << "ws server error";
         });
+    */
 
     // std::shared_ptr<buffer::Buffer> buf1, buf2;
     // auto buf3 = buffer::Buffer::concat(buf1, buf2);

@@ -22,7 +22,17 @@ public:
             }
         };
 
-        return std::make_shared<EnableMakeShared>(std::forward<Args>(args)...);
+        constexpr bool hasInit = requires(const T& t) {
+            t.init();
+        };
+
+        auto ptr = std::make_shared<EnableMakeShared>(std::forward<Args>(args)...);
+
+        if (hasInit) {
+            ptr->init();
+        }
+
+        return ptr;
     }
 };
 

@@ -19,7 +19,6 @@ class WebSocketClient : public std::enable_shared_from_this<WebSocketClient>, pu
 public:
     ~WebSocketClient();
 
-    void connect(const std::string& host, uint16_t port, const std::string& query);
     void close();
 
     event::Signal<std::shared_ptr<buffer::Buffer>&&>& onMessage();
@@ -39,7 +38,7 @@ public:
     void write(const char* data, size_t bytes);
 
 protected:
-    WebSocketClient();
+    WebSocketClient(const std::string& url);
 
 private:
     void write();
@@ -53,11 +52,6 @@ private:
     std::queue<std::shared_ptr<buffer::Buffer> > mReadBuffers, mWriteBuffers;
     wslay_event_context_ptr mCtx;
 };
-
-inline WebSocketClient::WebSocketClient()
-    : mState(Idle), mBufferOffset(0), mCtx(nullptr)
-{
-}
 
 inline WebSocketClient::~WebSocketClient()
 {
