@@ -53,6 +53,13 @@ public:
     template<typename T, typename std::enable_if<std::is_base_of<Event, T>::value, T>::type* = nullptr>
     void send(T&& event);
 
+    template<typename T, typename ...Args>
+    typename std::enable_if<std::is_invocable_r<void, T, Args...>::value, void>::type
+    post(T&& func, Args&& ...args);
+
+    template<typename T, typename std::enable_if<std::is_base_of<Event, T>::value, T>::type* = nullptr>
+    void post(T&& event);
+
     void send(std::unique_ptr<Event>&& event);
     void post(std::unique_ptr<Event>&& event);
 
@@ -266,7 +273,7 @@ inline void Loop::send(T&& event)
     if (mThread == std::this_thread::get_id()) {
         event.execute();
     } else {
-        send(std::make_shared<Event>(new T(std::forward<T>(event))));
+        send(std::make_unique<Event>(new T(std::forward<T>(event))));
     }
 }
 
@@ -277,6 +284,20 @@ inline void Loop::send(std::unique_ptr<Event>&& event)
     } else {
         post(std::forward<std::unique_ptr<Event> >(event));
     }
+}
+
+template<typename T, typename ...Args>
+inline typename std::enable_if<std::is_invocable_r<void, T, Args...>::value, void>::type
+Loop::post(T&& func, Args&& ...args)
+{
+    std::unique_ptr<detail::ArgsEvent<T, Args...> > event = std::make_unique<detail::ArgsEvent<T, Args...> >(std::forward<T>(func), std::forward<Args>(args)...);
+    post(std::move(event));
+}
+
+template<typename T, typename std::enable_if<std::is_base_of<Loop::Event, T>::value, T>::type*>
+inline void Loop::post(T&& event)
+{
+    post(std::make_unique<Event>(new T(std::forward<T>(event))));
 }
 
 inline void Loop::post(std::unique_ptr<Event>&& event)
