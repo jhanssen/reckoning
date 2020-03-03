@@ -98,6 +98,8 @@ HttpClient::~HttpClient()
 
 void HttpClient::init()
 {
+    if (mConnectionInfo)
+        return;
     ensureCurlInfo();
     connect(mUrl, mHeaders, mMethod);
 }
@@ -364,6 +366,7 @@ void HttpClient::checkMultiInfo()
 
             auto http = conn->http.lock();
             if (http) {
+                http->mConnectionInfo = nullptr;
                 if (res != CURLE_OK) {
                     http->mError.emit(std::string(conn->error));
                 }
@@ -379,6 +382,8 @@ void HttpClient::checkMultiInfo()
 
 void HttpClient::write(std::shared_ptr<buffer::Buffer>&& buffer)
 {
+    if (!mConnectionInfo)
+        return;
     mBuffers.push_back(buffer);
     if (mPaused) {
         curl_easy_pause(mConnectionInfo->easy, CURLPAUSE_CONT);
@@ -388,6 +393,8 @@ void HttpClient::write(std::shared_ptr<buffer::Buffer>&& buffer)
 
 void HttpClient::write(const std::shared_ptr<buffer::Buffer>& buffer)
 {
+    if (!mConnectionInfo)
+        return;
     mBuffers.push_back(buffer);
     if (mPaused) {
         curl_easy_pause(mConnectionInfo->easy, CURLPAUSE_CONT);
@@ -397,6 +404,8 @@ void HttpClient::write(const std::shared_ptr<buffer::Buffer>& buffer)
 
 void HttpClient::write(const uint8_t* data, size_t bytes)
 {
+    if (!mConnectionInfo)
+        return;
     auto buffer = buffer::Pool<4, 16384>::pool().get(bytes);
     buffer->assign(data, bytes);
     mBuffers.push_back(buffer);
@@ -408,6 +417,8 @@ void HttpClient::write(const uint8_t* data, size_t bytes)
 
 void HttpClient::write(const char* data, size_t bytes)
 {
+    if (!mConnectionInfo)
+        return;
     auto buffer = buffer::Pool<4, 16384>::pool().get(bytes);
     buffer->assign(reinterpret_cast<const uint8_t*>(data), bytes);
     mBuffers.push_back(buffer);
@@ -419,6 +430,8 @@ void HttpClient::write(const char* data, size_t bytes)
 
 void HttpClient::endWrite()
 {
+    if (!mConnectionInfo)
+        return;
     mWriteEnd = true;
     if (mPaused) {
         curl_easy_pause(mConnectionInfo->easy, CURLPAUSE_CONT);
