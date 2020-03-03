@@ -159,9 +159,16 @@ void HttpClient::socketEventCallback(int fd, uint8_t flags)
         action |= CURL_CSELECT_IN;
     if (flags & event::Loop::FdWrite)
         action |= CURL_CSELECT_OUT;
-    int running;
+    int running = 0;
     curl_multi_socket_action(tCurlInfo->multi, fd, action, &running);
     HttpClient::checkMultiInfo();
+    if (running <= 0) {
+        // we're done!
+        if (tCurlInfo->timer) {
+            tCurlInfo->timer->stop();
+            tCurlInfo->timer.reset();
+        }
+    }
 }
 
 int HttpClient::multiSocketCallback(CURL* easy, curl_socket_t socket, int what, void* globalSocketData, void* perSocketData)
