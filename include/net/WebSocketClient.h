@@ -35,6 +35,7 @@ protected:
 
 private:
     void write();
+    void writeCallback(int fd, uint8_t flags);
 
 private:
     std::shared_ptr<HttpClient> mHttp;

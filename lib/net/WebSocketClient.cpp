@@ -101,34 +101,7 @@ WebSocketClient::WebSocketClient(const std::string& url)
                 // tell our event loop that we want to know about write availability
                 auto loop = event::Loop::loop();
 
-                std::function<void(int, uint8_t)> onwrite;
-                onwrite = [ws, &onwrite](int fd, uint8_t flags) {
-                    if (flags & event::Loop::FdWrite) {
-                        auto innerLoop = event::Loop::loop();
-                        innerLoop->removeFd(fd);
-                        // write some more
-                        int where = ws->mFdWriteOffset;
-                        int e;
-                        while (!ws->mFdWriteBuffers.empty()) {
-                            const auto& buffer = ws->mFdWriteBuffers.front();
-                            eintrwrap(e, ::write(fd, buffer->data() + where, buffer->size() - where));
-                            if (e > 0) {
-                                where += e;
-                                if (where == buffer->size()) {
-                                    ws->mFdWriteBuffers.pop();
-                                    where = 0;
-                                }
-                            } else if (e == EAGAIN || e == EWOULDBLOCK) {
-                                // boo
-                                innerLoop->addFd(fd, event::Loop::FdWrite, onwrite);
-                                break;
-                            }
-                        }
-                        ws->mFdWriteOffset = where;
-                    }
-                };
-
-                loop->addFd(fd, event::Loop::FdWrite, onwrite);
+                loop->addFd(fd, event::Loop::FdWrite, std::bind(&WebSocketClient::writeCallback, ws, std::placeholders::_1, std::placeholders::_2));
                 break;
             }
         }
@@ -288,5 +261,32 @@ void WebSocketClient::write()
             wslay_event_send(mCtx);
         }
         mWriteBuffers.pop();
+    }
+}
+
+void WebSocketClient::writeCallback(int fd, uint8_t flags)
+{
+    if (flags & event::Loop::FdWrite) {
+        auto innerLoop = event::Loop::loop();
+        innerLoop->removeFd(fd);
+        // write some more
+        int where = mFdWriteOffset;
+        int e;
+        while (!mFdWriteBuffers.empty()) {
+            const auto& buffer = mFdWriteBuffers.front();
+            eintrwrap(e, ::write(fd, buffer->data() + where, buffer->size() - where));
+            if (e > 0) {
+                where += e;
+                if (where == buffer->size()) {
+                    mFdWriteBuffers.pop();
+                    where = 0;
+                }
+            } else if (e == EAGAIN || e == EWOULDBLOCK) {
+                // boo
+                innerLoop->addFd(fd, event::Loop::FdWrite, std::bind(&WebSocketClient::writeCallback, this, std::placeholders::_1, std::placeholders::_2));
+                break;
+            }
+        }
+        mFdWriteOffset = where;
     }
 }
