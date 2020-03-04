@@ -17,4 +17,4 @@ include_sources(SOURCES serializer)
 include_sources(SOURCES util)
 
 add_library(reckoning SHARED ${SOURCES})
-target_link_libraries(reckoning c-ares::cares_shared OpenSSL::Crypto CURL::libcurl wslay_shared uriparser pthread)
+target_link_libraries(reckoning c-ares::cares_shared OpenSSL::Crypto OpenSSL::SSL CURL::libcurl wslay_shared uriparser pthread)
