@@ -37,7 +37,6 @@ protected:
 
 private:
     void write();
-    void writeCallback(int fd, uint8_t flags);
 
 private:
     std::shared_ptr<HttpClient> mHttp;
@@ -45,11 +44,9 @@ private:
     event::Signal<> mComplete;
     event::Signal<std::string&&> mError;
     size_t mBufferOffset;
-    std::queue<std::shared_ptr<buffer::Buffer> > mReadBuffers, mWriteBuffers, mFdWriteBuffers;
+    std::queue<std::shared_ptr<buffer::Buffer> > mReadBuffers, mWriteBuffers;
     wslay_event_context_ptr mCtx;
     bool mUpgraded;
-    int mDupped;
-    size_t mFdWriteOffset;
     std::weak_ptr<event::Loop> mLoop;
 };
 

@@ -121,7 +121,7 @@ int Loop::execute(std::chrono::milliseconds timeout)
                 for (const auto &fd : mPendingFds) {
                     fds.push_back(fd.first);
                 }
-                // these might be duplicated in mFds (in case someone removes and readds before the event loop has a time to process
+                // these might be duplicated in mFds (in case someone removes and readds before the event loop has a time to process)
                 // so we need to remove them if they do
                 auto fit = mFds.begin();
                 while (fit != mFds.end()) {

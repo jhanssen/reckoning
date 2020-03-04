@@ -40,7 +40,7 @@ public:
         Headers headers;
     };
 
-    enum Method { Get, Post };
+    enum Flags { Post = 0x1, WebSocket = 0x2 };
 
     void write(std::shared_ptr<buffer::Buffer>&& buffer);
     void write(const std::shared_ptr<buffer::Buffer>& buffer);
@@ -55,18 +55,16 @@ public:
 
     void init();
 
-    int fd() const;
-
 protected:
     HttpClient(const std::string& url);
-    HttpClient(const std::string& url, Method method);
+    HttpClient(const std::string& url, uint8_t flags);
     HttpClient(const std::string& url, const Headers& headers);
-    HttpClient(const std::string& url, const Headers& headers, Method method);
+    HttpClient(const std::string& url, const Headers& headers, uint8_t flags);
 
 private:
     static void ensureCurlInfo();
 
-    void connect(const std::string& url, const Headers& headers, Method method);
+    void connect(const std::string& url, const Headers& headers, uint8_t flags);
     static size_t easyReadCallback(void *dest, size_t size, size_t nmemb, void *userp);
     static size_t easyHeaderCallback(char *buffer, size_t size, size_t nmemb, void *userdata);
     static size_t easyWriteCallback(void *ptr, size_t size, size_t nmemb, void *data);
@@ -75,21 +73,34 @@ private:
     static void socketEventCallback(int fd, uint8_t flags);
     static void checkMultiInfo();
 
+    void setupWS();
+    void handleWS(uint8_t flags);
+
 private:
     std::string mUrl;
     Headers mHeaders;
-    Method mMethod;
+    uint8_t mFlags;
 
     event::Signal<Response&&> mResponse;
     event::Signal<std::shared_ptr<buffer::Buffer>&&> mBodyData;
     event::Signal<> mComplete;
     event::Signal<std::string&&> mError;
 
+    bool mResponseReceived { false };
     bool mPaused { false };
     bool mWriteEnd { false };
     size_t mBufferPos { 0 };
     size_t mBufferOffset { 0 };
     std::vector<std::shared_ptr<buffer::Buffer> > mBuffers;
+    enum SSLWaitState {
+        SSLNotWaiting,
+        SSLReadWaitingForRead,
+        SSLReadWaitingForWrite,
+        SSLWriteWaitingForRead,
+        SSLWriteWaitingForWrite
+    };
+    SSLWaitState mSSLReadWaitState { SSLNotWaiting }, mSSLWriteWaitState { SSLNotWaiting };
+    bool mWaitingForRead { false }, mWaitingForWrite { false };
 
     HttpConnectionInfo* mConnectionInfo { nullptr };
 

@@ -129,7 +129,7 @@ int Loop::execute(std::chrono::milliseconds timeout)
                 for (const auto &fd : mPendingFds) {
                     fds.push_back(fd.first);
                 }
-                // these might be duplicated in mFds (in case someone removes and readds before the event loop has a time to process
+                // these might be duplicated in mFds (in case someone removes and readds before the event loop has a time to process)
                 // so we need to remove them if they do
                 auto fit = mFds.begin();
                 while (fit != mFds.end()) {
@@ -151,7 +151,6 @@ int Loop::execute(std::chrono::milliseconds timeout)
             struct epoll_event ev;
             memset(&ev, 0, sizeof(struct epoll_event));
             for (auto fd : fds) {
-                // printf("adding fd %d\n", fd);
                 ev.events = EPOLLRDHUP | EPOLLET | EPOLLIN;
                 ev.data.fd = fd;
                 e = epoll_ctl(mFd, EPOLL_CTL_ADD, fd, &ev);
