@@ -157,6 +157,7 @@ void HttpClient::connect(const std::string& url, const Headers& headers, uint8_t
     curl_easy_setopt(conn->easy, CURLOPT_FOLLOWLOCATION, 1);
     if (flags & WebSocket) {
         curl_easy_setopt(conn->easy, CURLOPT_FORBID_REUSE, 1);
+        curl_easy_setopt(conn->easy, CURLOPT_FRESH_CONNECT, 1);
         curl_easy_setopt(conn->easy, CURLOPT_SSL_ENABLE_ALPN, 0);
         curl_easy_setopt(conn->easy, CURLOPT_SSL_ENABLE_NPN, 0);
         curl_easy_setopt(conn->easy, CURLOPT_SSL_CTX_DATA, conn);
