@@ -55,6 +55,7 @@ protected:
     TcpSocket();
 
 private:
+    void internalConnect(int e, int& fd, event::Loop::FD& handle, int& otherfd, event::Loop::FD& otherHandle);
     void socketCallback(int fd, uint8_t flags);
     void processWrite(int fd);
     std::shared_ptr<buffer::Buffer> read(size_t bytes = BufferSize);

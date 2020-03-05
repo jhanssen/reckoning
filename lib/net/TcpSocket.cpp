@@ -310,6 +310,47 @@ void TcpSocket::connect(const std::string& host, uint16_t port, Mode mode)
     Resolver::resolver().startRequest(mResolver);
 }
 
+void TcpSocket::internalConnect(int e, int& fd, event::Loop::FD& handle, int& otherfd, event::Loop::FD& otherHandle)
+{
+    if (!e) {
+        // we're connected
+        if (mMode == Plain) {
+            mState = Connected;
+            mStateChanged.emit(Connected);
+            processWrite(fd);
+        } else {
+            mState = Handshaking;
+            mStateChanged.emit(Handshaking);
+
+            assert(mSsl.session != nullptr && mSsl.bio == nullptr);
+            mSsl.bio = BIO_new_socket(fd, BIO_NOCLOSE);
+            SSL_set_bio(mSsl.session, mSsl.bio, mSsl.bio);
+            SSL_set_connect_state(mSsl.session);
+            connectTLS(fd);
+        }
+        // if we have a pending IPv6 connect, close it
+        if (otherfd != -1) {
+            otherHandle.remove();
+            otherfd = -1;
+        }
+    } else if (errno == EINPROGRESS) {
+        // we're pending connect
+        if (mState < Connecting) {
+            mState = Connecting;
+            mStateChanged.emit(Connecting);
+        }
+        event::Loop::loop()->updateFd(fd, event::Loop::FdRead|event::Loop::FdWrite);
+    } else {
+        // bad stuff
+        if (otherfd == -1) {
+            mState = Error;
+            mStateChanged.emit(Error);
+        }
+        handle.remove();
+        fd = -1;
+    }
+}
+
 void TcpSocket::connect(const IPv4& ip, uint16_t port, Mode mode)
 {
     if (mFd4 != -1 || mState == Connected) {
@@ -329,50 +370,13 @@ void TcpSocket::connect(const IPv4& ip, uint16_t port, Mode mode)
 #ifdef HAVE_NONBLOCK
     util::socket::setFlag(mFd4, O_NONBLOCK);
 #endif
-    mFd4Handle = event::Loop::loop()->addFd(mFd4, event::Loop::FdRead|event::Loop::FdWrite,
-                                            std::bind(&TcpSocket::socketCallback, this, std::placeholders::_1, std::placeholders::_2));
+    mFd4Handle = event::Loop::loop()->addFd(mFd4, event::Loop::FdRead, std::bind(&TcpSocket::socketCallback, this, std::placeholders::_1, std::placeholders::_2));
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
     addr.sin_addr = ip.ip();
     eintrwrap(e, ::connect(mFd4, reinterpret_cast<sockaddr*>(&addr), sizeof(sockaddr_in)));
-    if (!e) {
-        // we're connected
-        if (mMode == Plain) {
-            mState = Connected;
-            mStateChanged.emit(Connected);
-            processWrite(mFd4);
-        } else {
-            mState = Handshaking;
-            mStateChanged.emit(Handshaking);
-
-            assert(mSsl.session != nullptr && mSsl.bio == nullptr);
-            mSsl.bio = BIO_new_socket(mFd4, BIO_NOCLOSE);
-            SSL_set_bio(mSsl.session, mSsl.bio, mSsl.bio);
-            SSL_set_connect_state(mSsl.session);
-            connectTLS(mFd4);
-        }
-        // if we have a pending IPv6 connect, close it
-        if (mFd6 != -1) {
-            mFd6Handle.remove();
-            mFd6 = -1;
-        }
-    } else if (errno == EINPROGRESS) {
-        // we're pending connect
-        if (mState < Connecting) {
-            mState = Connecting;
-            mStateChanged.emit(Connecting);
-        }
-        // printf("connecting %d\n", mFd4);
-    } else {
-        // bad stuff
-        if (mFd6 == -1) {
-            mState = Error;
-            mStateChanged.emit(Error);
-        }
-        mFd4Handle.remove();
-        mFd4 = -1;
-    }
+    internalConnect(e, mFd4, mFd4Handle, mFd6, mFd6Handle);
 }
 
 void TcpSocket::connect(const IPv6& ip, uint16_t port, Mode mode)
@@ -394,51 +398,14 @@ void TcpSocket::connect(const IPv6& ip, uint16_t port, Mode mode)
 #ifdef HAVE_NONBLOCK
     util::socket::setFlag(mFd6, O_NONBLOCK);
 #endif
-    mFd6Handle = event::Loop::loop()->addFd(mFd6, event::Loop::FdRead|event::Loop::FdWrite,
-                                            std::bind(&TcpSocket::socketCallback, this, std::placeholders::_1, std::placeholders::_2));
+    mFd6Handle = event::Loop::loop()->addFd(mFd6, event::Loop::FdRead, std::bind(&TcpSocket::socketCallback, this, std::placeholders::_1, std::placeholders::_2));
     struct sockaddr_in6 addr;
     memset(&addr, 0, sizeof(sockaddr_in6));
     addr.sin6_family = AF_INET6;
     addr.sin6_port = htons(port);
     addr.sin6_addr = ip.ip();
     eintrwrap(e, ::connect(mFd6, reinterpret_cast<sockaddr*>(&addr), sizeof(sockaddr_in6)));
-    if (!e) {
-        // we're connected
-        if (mMode == Plain) {
-            mState = Connected;
-            mStateChanged.emit(Connected);
-            processWrite(mFd6);
-        } else {
-            mState = Handshaking;
-            mStateChanged.emit(Handshaking);
-
-            assert(mSsl.session != nullptr && mSsl.bio == nullptr);
-            mSsl.bio = BIO_new_socket(mFd6, BIO_NOCLOSE);
-            SSL_set_bio(mSsl.session, mSsl.bio, mSsl.bio);
-            SSL_set_connect_state(mSsl.session);
-            connectTLS(mFd6);
-        }
-        // if we have a pending IPv4 connect, close it
-        if (mFd4 != -1) {
-            mFd4Handle.remove();
-            mFd4 = -1;
-        }
-    } else if (errno == EINPROGRESS) {
-        // we're pending connect
-        if (mState < Connecting) {
-            mState = Connecting;
-            mStateChanged.emit(Connecting);
-        }
-        // printf("connecting %d\n", mFd6);
-    } else {
-        // bad stuff
-        if (mFd4 == -1) {
-            mState = Error;
-            mStateChanged.emit(Error);
-        }
-        mFd6Handle.remove();
-        mFd6 = -1;
-    }
+    internalConnect(e, mFd6, mFd6Handle, mFd4, mFd4Handle);
 }
 
 void TcpSocket::setSocket(int fd, bool ipv6)
@@ -455,8 +422,7 @@ void TcpSocket::setSocket(int fd, bool ipv6)
     auto& handle = (ipv6 ? mFd6Handle : mFd4Handle);
     fdes = fd;
     mState = Connected;
-    handle = event::Loop::loop()->addFd(fdes, event::Loop::FdRead,
-                                        std::bind(&TcpSocket::socketCallback, this, std::placeholders::_1, std::placeholders::_2));
+    handle = event::Loop::loop()->addFd(fdes, event::Loop::FdRead, std::bind(&TcpSocket::socketCallback, this, std::placeholders::_1, std::placeholders::_2));
 }
 
 void TcpSocket::close()
