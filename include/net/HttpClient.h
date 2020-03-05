@@ -42,7 +42,7 @@ public:
         Headers headers;
     };
 
-    enum Flags { Post = 0x1, WebSocket = 0x2 };
+    enum Flags { Post = 0x1 };
 
     void write(std::shared_ptr<buffer::Buffer>&& buffer);
     void write(const std::shared_ptr<buffer::Buffer>& buffer);
@@ -75,9 +75,6 @@ private:
     static void socketEventCallback(int fd, uint8_t flags);
     static void checkMultiInfo();
 
-    void setupWS();
-    void handleWS(uint8_t flags);
-
 private:
     std::string mUrl;
     Headers mHeaders;
@@ -94,14 +91,6 @@ private:
     size_t mBufferPos { 0 };
     size_t mBufferOffset { 0 };
     std::vector<std::shared_ptr<buffer::Buffer> > mBuffers;
-    enum SSLWaitState {
-        SSLNotWaiting,
-        SSLReadWaitingForRead,
-        SSLReadWaitingForWrite,
-        SSLWriteWaitingForRead,
-        SSLWriteWaitingForWrite
-    };
-    SSLWaitState mSSLReadWaitState { SSLNotWaiting }, mSSLWriteWaitState { SSLNotWaiting };
     bool mWaitingForRead { false }, mWaitingForWrite { false };
 
     HttpConnectionInfo* mConnectionInfo { nullptr };
