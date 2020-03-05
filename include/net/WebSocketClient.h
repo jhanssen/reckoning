@@ -1,13 +1,13 @@
 #ifndef WEBSOCKETCLIENT_H
 #define WEBSOCKETCLIENT_H
 
-#include <net/HttpClient.h>
+#include <net/TcpSocket.h>
 #include <event/Loop.h>
 #include <util/Creatable.h>
 #include <net/TcpSocket.h>
 #include <buffer/Buffer.h>
 #include <buffer/Pool.h>
-#include <queue>
+#include <deque>
 #include <memory>
 
 struct wslay_event_context;
@@ -37,14 +37,16 @@ protected:
 
 private:
     void write();
+    void attemptUpgrade(const std::string& encodedClientKey);
+    void mergeReadBuffers();
 
 private:
-    std::shared_ptr<HttpClient> mHttp;
+    std::shared_ptr<TcpSocket> mTcp;
     event::Signal<std::shared_ptr<buffer::Buffer>&&> mMessage;
     event::Signal<> mComplete;
     event::Signal<std::string&&> mError;
     size_t mBufferOffset;
-    std::queue<std::shared_ptr<buffer::Buffer> > mReadBuffers, mWriteBuffers;
+    std::deque<std::shared_ptr<buffer::Buffer> > mReadBuffers, mWriteBuffers;
     wslay_event_context_ptr mCtx;
     bool mUpgraded;
     std::weak_ptr<event::Loop> mLoop;
@@ -72,13 +74,13 @@ inline event::Signal<std::string&&>& WebSocketClient::onError()
 
 inline void WebSocketClient::write(std::shared_ptr<buffer::Buffer>&& buffer)
 {
-    mWriteBuffers.push(std::move(buffer));
+    mWriteBuffers.push_back(std::move(buffer));
     write();
 }
 
 inline void WebSocketClient::write(const std::shared_ptr<buffer::Buffer>& buffer)
 {
-    mWriteBuffers.push(buffer);
+    mWriteBuffers.push_back(buffer);
     write();
 }
 
@@ -86,7 +88,7 @@ inline void WebSocketClient::write(const uint8_t* data, size_t bytes)
 {
     std::shared_ptr<buffer::Buffer> buf = buffer::Pool<20, TcpSocket::BufferSize>::pool().get();
     buf->assign(data, bytes);
-    mWriteBuffers.push(std::move(buf));
+    mWriteBuffers.push_back(std::move(buf));
     write();
 }
 
@@ -94,7 +96,7 @@ inline void WebSocketClient::write(const char* data, size_t bytes)
 {
     std::shared_ptr<buffer::Buffer> buf = buffer::Pool<20, TcpSocket::BufferSize>::pool().get();
     buf->assign(reinterpret_cast<const uint8_t*>(data), bytes);
-    mWriteBuffers.push(std::move(buf));
+    mWriteBuffers.push_back(std::move(buf));
     write();
 }
 

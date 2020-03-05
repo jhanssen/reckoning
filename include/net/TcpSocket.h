@@ -33,6 +33,7 @@ public:
     void write(const std::shared_ptr<buffer::Buffer>& buffer);
     void write(const uint8_t* data, size_t bytes);
     void write(const char* data, size_t bytes);
+    void write(const std::string& str);
 
     enum State {
         Idle,
@@ -156,6 +157,11 @@ inline void TcpSocket::setCAFile(const std::string& file)
 inline void TcpSocket::setCAPath(const std::string& path)
 {
     sCAPath = path;
+}
+
+inline void TcpSocket::write(const std::string& str)
+{
+    write(str.c_str(), str.size());
 }
 
 }} // namespace reckoning::net

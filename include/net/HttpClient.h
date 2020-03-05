@@ -31,6 +31,8 @@ public:
 
         template<typename T>
         std::string find(T&& key) const;
+
+        std::string toString() const;
     };
 
     struct Response
@@ -142,6 +144,15 @@ std::string HttpClient::Headers::find(T&& key) const
             return header.second;
     }
     return std::string();
+}
+
+inline std::string HttpClient::Headers::toString() const
+{
+    std::string str;
+    for (const auto& h : *this) {
+        str += h.first + ": " + h.second + "\r\n";
+    }
+    return str;
 }
 
 }} // namespace reckoning::net
