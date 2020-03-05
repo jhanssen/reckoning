@@ -168,6 +168,10 @@ void TcpSocket::socketCallback(int fd, uint8_t flags)
                 if (mSsl.writeWaitState == SSLWriteWaitingForRead) {
                     connectTLS(fd);
                 }
+                if (mState == Connected) {
+                    assert(mSsl.writeWaitState == SSLNotWaiting);
+                    processWrite(fd);
+                }
                 break;
             case Connected:
                 if (mSsl.readWaitState == SSLReadWaitingForRead) {
@@ -179,6 +183,7 @@ void TcpSocket::socketCallback(int fd, uint8_t flags)
                 }
                 if (mSsl.writeWaitState == SSLWriteWaitingForRead) {
                     // retry write
+                    processWrite(fd);
                 }
                 while (mSsl.readWaitState == SSLNotWaiting) {
                     // do the reads
