@@ -287,11 +287,11 @@ size_t HttpClient::easyHeaderCallback(char *buffer, size_t size, size_t nmemb, v
     HttpConnectionInfo* conn = static_cast<HttpConnectionInfo*>(userdata);
     if (conn->headers.empty() && conn->status == 0) {
         // assume HTTP line?
-        std::regex headerrx("^HTTP\\/\\d\\.\\d (\\d{3}) ([a-zA-Z0-9]+)");
+        std::regex headerrx("^HTTP\\/\\d(\\.\\d)? (\\d{3}) ([a-zA-Z0-9]*)");
         std::smatch match;
-        if (regex_search(header, match, headerrx) == true && match.size() == 3) {
-            conn->status = std::stoi(match.str(1));
-            conn->reason = match.str(2);
+        if (regex_search(header, match, headerrx) == true && match.size() == 4) {
+            conn->status = std::stoi(match.str(2));
+            conn->reason = match.str(3);
         } else {
             return 0;
         }
