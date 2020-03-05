@@ -22,12 +22,12 @@ void TcpSocket::socketCallback(int fd, uint8_t flags)
 {
     assert(fd != -1);
 
-    if (fd == mFd4) {
-        // ipv4
+    auto process = [&](int& fd, event::Loop::FD& handle, int& otherfd, event::Loop::FD& otherHandle) {
+        int e;
         if (flags & event::Loop::FdError) {
             // badness
-            mFd4 = -1;
-            mFd4Handle.remove();
+            handle.remove();
+            fd = -1;
             return;
         }
         if (flags & event::Loop::FdRead) {
@@ -44,77 +44,37 @@ void TcpSocket::socketCallback(int fd, uint8_t flags)
                 // check connect status
                 int err;
                 socklen_t size = sizeof(err);
-                int e = ::getsockopt(mFd4, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &size);
+                e = ::getsockopt(fd, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &size);
                 if (e == -1 || err != 0) {
                     // failed to connect
-                    if (mFd6 == -1) {
+                    if (otherfd == -1) {
                         // we're done
                         mState = Error;
                         mStateChanged.emit(Error);
                     }
-                    mFd4 = -1;
-                    mFd4Handle.remove();
+                    handle.remove();
+                    fd = -1;
                     return;
                 } else {
-                    // we're good, if IPv6 is still connected, close it
+                    // we're good, if the other socket is still open, close it
                     mState = Connected;
                     mStateChanged.emit(Connected);
-                    if (mFd6 != -1) {
-                        mFd6 = -1;
-                        mFd6Handle.remove();
+                    if (otherfd != -1) {
+                        otherHandle.remove();
+                        otherfd = -1;
                     }
-                    processWrite(mFd4);
                 }
             }
 
-            processWrite(mFd6);
+            processWrite(fd);
         }
+    };
+
+    if (fd == mFd4) {
+        // ipv4
+        process(mFd4, mFd4Handle, mFd6, mFd6Handle);
     } else if (fd == mFd6) {
-        // ipv6
-        if (flags & event::Loop::FdError) {
-            // badness
-            mFd6 = -1;
-            mFd6Handle.remove();
-            return;
-        }
-        if (flags & event::Loop::FdRead) {
-            auto buf = read();
-            if (buf)
-                mData.emit(std::move(buf));
-        }
-        if (flags & event::Loop::FdWrite) {
-            // remove select for write
-            event::Loop::loop()->updateFd(fd, event::Loop::FdRead);
-
-            if (mState & Connecting) {
-                // check connect status
-                int err;
-                socklen_t size = sizeof(err);
-                int e = ::getsockopt(mFd6, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &size);
-                if (e == -1 || err != 0) {
-                    // failed to connect
-                    if (mFd4 == -1) {
-                        // we're done
-                        mState = Error;
-                        mStateChanged.emit(Error);
-                    }
-                    mFd6 = -1;
-                    mFd6Handle.remove();
-                    return;
-                } else {
-                    // we're good, if IPv4 is still connected, close it
-                    mState = Connected;
-                    mStateChanged.emit(Connected);
-                    if (mFd4 != -1) {
-                        mFd4 = -1;
-                        mFd4Handle.remove();
-                    }
-                    processWrite(mFd6);
-                }
-            }
-
-            processWrite(mFd6);
-        }
+        process(mFd6, mFd6Handle, mFd4, mFd4Handle);
     }
 }
 
@@ -176,14 +136,16 @@ void TcpSocket::connect(const IPv4& ip, uint16_t port)
         mStateChanged.emit(Connected);
         // if we have a pending IPv6 connect, close it
         if (mFd6 != -1) {
-            mFd6 = -1;
             mFd6Handle.remove();
+            mFd6 = -1;
         }
         processWrite(mFd4);
     } else if (errno == EINPROGRESS) {
         // we're pending connect
-        mState = Connecting;
-        mStateChanged.emit(Connecting);
+        if (mState < Connecting) {
+            mState = Connecting;
+            mStateChanged.emit(Connecting);
+        }
         // printf("connecting %d\n", mFd4);
     } else {
         // bad stuff
@@ -191,8 +153,8 @@ void TcpSocket::connect(const IPv4& ip, uint16_t port)
             mState = Error;
             mStateChanged.emit(Error);
         }
-        mFd4 = -1;
         mFd4Handle.remove();
+        mFd4 = -1;
     }
 }
 
@@ -224,14 +186,16 @@ void TcpSocket::connect(const IPv6& ip, uint16_t port)
         mStateChanged.emit(Connected);
         // if we have a pending IPv4 connect, close it
         if (mFd4 != -1) {
-            mFd4 = -1;
             mFd4Handle.remove();
+            mFd4 = -1;
         }
         processWrite(mFd6);
     } else if (errno == EINPROGRESS) {
         // we're pending connect
-        mState = Connecting;
-        mStateChanged.emit(Connecting);
+        if (mState < Connecting) {
+            mState = Connecting;
+            mStateChanged.emit(Connecting);
+        }
         // printf("connecting %d\n", mFd6);
     } else {
         // bad stuff
@@ -239,8 +203,8 @@ void TcpSocket::connect(const IPv6& ip, uint16_t port)
             mState = Error;
             mStateChanged.emit(Error);
         }
-        mFd6 = -1;
         mFd6Handle.remove();
+        mFd6 = -1;
     }
 }
 
@@ -265,12 +229,12 @@ void TcpSocket::setSocket(int fd, bool ipv6)
 void TcpSocket::close()
 {
     if (mFd4 != -1) {
-        mFd4 = -1;
         mFd4Handle.remove();
+        mFd4 = -1;
     }
     if (mFd6 != -1) {
-        mFd6 = -1;
         mFd6Handle.remove();
+        mFd6 = -1;
     }
 }
 
