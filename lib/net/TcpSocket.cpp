@@ -321,7 +321,6 @@ void TcpSocket::connect(const IPv4& ip, uint16_t port, Mode mode)
         initTLS();
     }
 
-    std::weak_ptr<TcpSocket> weak = shared_from_this();
     mFd4 = socket(AF_INET, SOCK_STREAM, 0);
     int e = 1;
 #ifdef HAVE_NOSIGPIPE
@@ -387,7 +386,6 @@ void TcpSocket::connect(const IPv6& ip, uint16_t port, Mode mode)
         initTLS();
     }
 
-    std::weak_ptr<TcpSocket> weak = shared_from_this();
     mFd6 = socket(AF_INET6, SOCK_STREAM, 0);
     int e = 1;
 #ifdef HAVE_NOSIGPIPE
