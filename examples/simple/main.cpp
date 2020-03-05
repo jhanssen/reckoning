@@ -142,6 +142,7 @@ int main(int argc, char** argv)
     });
     */
 
+    /*
     auto ws = net::WebSocketClient::create("ws://demos.kaazing.com/echo");
     ws->onMessage().connect([](std::shared_ptr<buffer::Buffer>&& msg) {
         Log(Log::Info) << "ws msg" << msg->size();
@@ -153,21 +154,22 @@ int main(int argc, char** argv)
         Log(Log::Info) << "ws complete";
     });
     ws->write("foo bar", 7);
+    */
 
-    /*
     std::shared_ptr<net::TcpSocket> socket = net::TcpSocket::create();
-    socket->onStateChanged().connect([](std::shared_ptr<net::TcpSocket>&& socket, net::TcpSocket::State state) {
+    socket->onStateChanged().connect([](net::TcpSocket::State state) {
             Log(Log::Info) << "socket state change" << static_cast<int>(state);
         });
-    socket->onReadyRead().connect([](std::shared_ptr<net::TcpSocket>&& socket) {
+    socket->onData().connect([](std::shared_ptr<buffer::Buffer>&& buf) {
             Log(Log::Info) << "ready to read";
-            auto buf = socket->read();
-            if (buf)
+            if (buf) {
                 printf("read %zu bytes\n", buf->size());
+                printf("%s\n", std::string(reinterpret_cast<const char*>(buf->data()), buf->size()).c_str());
+            }
         });
     socket->connect("www.google.com", 80);
-    socket->write("GET / HTTP/1.0\r\n\r\n", 18);
-    */
+    //socket->connect("www.vg.no", 443, net::TcpSocket::TLS);
+    socket->write("GET / HTTP/1.0\r\nHost: www.google.no\r\n\r\n", 39);
     /*
     auto http = net::HttpClient::create();
     http->onResponse().connect([](net::HttpClient::Response&& response) {
