@@ -6,6 +6,7 @@
 #include <net/TcpSocket.h>
 #include <util/Socket.h>
 #include <curl/curl.h>
+#include <stdlib.h>
 #include <regex>
 
 using namespace reckoning;

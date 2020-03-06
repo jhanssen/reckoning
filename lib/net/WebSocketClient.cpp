@@ -8,6 +8,7 @@
 #include <util/Random.h>
 #include <util/Base64.h>
 #include <openssl/sha.h>
+#include <stdlib.h>
 
 using namespace reckoning;
 using namespace reckoning::net;
