@@ -17,13 +17,11 @@ WebSocketClient::WebSocketClient(const std::string& url)
     : mBufferOffset(0), mCtx(nullptr), mUpgraded(false)
 {
     uint8_t clientKey[16];
-    uint8_t encodedClientKey[25];
+    std::string encodedClientKey;
+    encodedClientKey.resize(24);
     util::Random::random().fill(clientKey, sizeof(clientKey));
-    const size_t encodedLength = util::base64::encode(clientKey, sizeof(clientKey), encodedClientKey, sizeof(encodedClientKey));
-    assert(encodedLength > sizeof(clientKey) && encodedLength < sizeof(encodedClientKey));
-    encodedClientKey[encodedLength] = '\0';
-
-    std::string encodedClientKeyStr(reinterpret_cast<char*>(encodedClientKey), encodedLength);
+    const size_t encodedLength = util::base64::encode(clientKey, sizeof(clientKey), reinterpret_cast<uint8_t*>(&encodedClientKey[0]), encodedClientKey.size());
+    encodedClientKey.resize(encodedLength);
 
     mLoop = event::Loop::loop();
 
@@ -109,18 +107,18 @@ WebSocketClient::WebSocketClient(const std::string& url)
     headers.add("Host", uri.host());
     headers.add("Upgrade", "websocket");
     headers.add("Connection", "upgrade");
-    headers.add("Sec-WebSocket-Key", reinterpret_cast<char*>(encodedClientKey));
+    headers.add("Sec-WebSocket-Key", encodedClientKey);
     headers.add("Sec-WebSocket-Version", "13");
 
     mTcp = TcpSocket::create();
 
-    mTcp->onData().connect([this, encodedClientKeyStr](std::shared_ptr<buffer::Buffer>&& buffer) {
+    mTcp->onData().connect([this, encodedClientKey](std::shared_ptr<buffer::Buffer>&& buffer) {
         assert(buffer);
         mReadBuffers.push_back(std::move(buffer));
 
         // verify accept key
         if (!mUpgraded) {
-            attemptUpgrade(encodedClientKeyStr);
+            attemptUpgrade(encodedClientKey);
         }
         if (mUpgraded) {
             // consume read buffers
