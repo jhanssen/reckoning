@@ -43,7 +43,7 @@ inline Wait<NumberOfBuffers, MaxBufferSize>::Wait(const char* needle)
 
 template<size_t NumberOfBuffers, size_t MaxBufferSize>
 inline Wait<NumberOfBuffers, MaxBufferSize>::Wait(std::string&& needle)
-    : mNeedle(std::forward<std::string>(needle))
+    : mNeedle(std::move(needle))
 {
 }
 

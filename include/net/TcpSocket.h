@@ -130,7 +130,7 @@ inline void TcpSocket::write(const std::shared_ptr<buffer::Buffer>& buffer)
 
 inline void TcpSocket::write(std::shared_ptr<buffer::Buffer>&& buffer)
 {
-    mPendingWrites.push_back(std::forward<std::shared_ptr<buffer::Buffer> >(buffer));
+    mPendingWrites.push_back(std::move(buffer));
     if (mState != Connected)
         return;
     if (mFd4 != -1) {

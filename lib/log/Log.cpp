@@ -30,6 +30,6 @@ void Log::initialize(Level level, Output output, const std::string& filename)
 void Log::setLogHandler(std::function<void(Output, std::string&&)>&& handler)
 {
     std::lock_guard<std::mutex> locker(sHandlerMutex);
-    sHandler = std::forward<std::function<void(Output, std::string&&)> >(handler);
+    sHandler = std::move(handler);
     sHasHandler = true;
 }
