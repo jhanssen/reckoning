@@ -282,7 +282,7 @@ inline void Loop::send(std::unique_ptr<Event>&& event)
     if (mThread == std::this_thread::get_id()) {
         event->execute();
     } else {
-        post(std::forward<std::unique_ptr<Event> >(event));
+        post(std::move(event));
     }
 }
 
@@ -303,7 +303,7 @@ inline void Loop::post(T&& event)
 inline void Loop::post(std::unique_ptr<Event>&& event)
 {
     std::lock_guard<std::mutex> locker(mMutex);
-    mEvents.push_back(std::forward<std::unique_ptr<Event> >(event));
+    mEvents.push_back(std::move(event));
     wakeup();
 }
 
@@ -339,7 +339,7 @@ inline void Loop::addTimer(std::shared_ptr<Timer>&& t)
         return a->mNext < b->mNext;
     };
     auto it = std::lower_bound(mTimers.begin(), mTimers.end(), t, compare);
-    mTimers.insert(it, std::forward<std::shared_ptr<Timer> >(t));
+    mTimers.insert(it, std::move(t));
 
     wakeup();
 }
