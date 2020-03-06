@@ -120,13 +120,13 @@ inline event::Signal<std::string&&>& HttpClient::onError()
 template<typename T, typename U>
 inline void HttpClient::Headers::add(T&& key, U&& value)
 {
-    push_back(std::make_pair(std::forward<typename std::decay<T>::type>(key), std::forward<typename std::decay<U>::type>(value)));
+    push_back(std::make_pair(std::forward<T>(key), std::forward<U>(value)));
 }
 
 template<typename T>
 std::string HttpClient::Headers::find(T&& key) const
 {
-    const std::string keystr = std::forward<typename std::decay<T>::type>(key);
+    const std::string keystr = std::forward<T>(key);
     for (auto header : *this) {
         if (header.first == keystr)
             return header.second;
