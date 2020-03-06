@@ -91,7 +91,6 @@ private:
     size_t mBufferPos { 0 };
     size_t mBufferOffset { 0 };
     std::vector<std::shared_ptr<buffer::Buffer> > mBuffers;
-    bool mWaitingForRead { false }, mWaitingForWrite { false };
 
     HttpConnectionInfo* mConnectionInfo { nullptr };
 
