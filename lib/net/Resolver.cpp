@@ -1,6 +1,7 @@
 #include <net/Resolver.h>
 #include <event/Loop.h>
 #include <log/Log.h>
+#include <util/Socket.h>
 #include <ares.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -92,7 +93,7 @@ Resolver::Resolver()
                         break;
                     }
                     tvp = ares_timeout(channel, nullptr, &tv);
-                    e = select(nfds, &read_fds, &write_fds, nullptr, tvp);
+                    eintrwrap(e, ::select(nfds, &read_fds, &write_fds, nullptr, tvp));
                     if (e == -1) {
                         // ugh
                         Log(Log::Error) << "Error selecting c-ares" << e;
