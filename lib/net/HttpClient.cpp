@@ -290,7 +290,7 @@ size_t HttpClient::easyHeaderCallback(char *buffer, size_t size, size_t nmemb, v
         std::regex headerrx("^HTTP\\/\\d(\\.\\d)? (\\d{3}) ([a-zA-Z0-9]*)");
         std::smatch match;
         if (regex_search(header, match, headerrx) == true && match.size() == 4) {
-            conn->status = std::stoi(match.str(2));
+            conn->status = atoi(match.str(2).c_str());
             conn->reason = match.str(3);
         } else {
             return 0;
