@@ -392,6 +392,12 @@ void HttpClient::checkMultiInfo()
                     http->mError.emit(std::string(conn->error));
                 }
                 http->mComplete.emit();
+
+                // disconnect everything
+                http->mError.disconnect();
+                http->mComplete.disconnect();
+                http->mBodyData.disconnect();
+                http->mResponse.disconnect();
             }
 
             curl_multi_remove_handle(multi, easy);

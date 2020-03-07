@@ -3,8 +3,10 @@
 
 #include <memory>
 #include <cassert>
-#include <string.h>
+#include <string>
 #include <util/Creatable.h>
+#include <cstdio>
+#include <cstring>
 
 namespace reckoning {
 namespace buffer {
@@ -34,6 +36,8 @@ public:
 
     template<size_t MaxSize, typename... Args>
     static size_t concat(uint8_t* blob, Args&&... args);
+
+    static std::shared_ptr<Buffer> fromFile(const std::string& file);
 
     using util::Creatable<Buffer>::create;
 
@@ -153,7 +157,7 @@ struct Concat<MaxSize, First, Args...>
 {
     static void concat(uint8_t*& blob, size_t& used, size_t& size, First&& first, Args&&... args)
     {
-        const size_t fsz = first->size();
+        const size_t fsz = first ? first->size() : 0;
         if (fsz > 0) {
             if (used + fsz > size) {
                 // realloc
@@ -204,6 +208,27 @@ inline size_t Buffer::concat(uint8_t* b, Args&&... args)
         return 0;
     }
     return used;
+}
+
+inline std::shared_ptr<Buffer> Buffer::fromFile(const std::string& file)
+{
+    FILE* f = fopen(file.c_str(), "r");
+    if (!f)
+        return {};
+    fseek(f, 0, SEEK_END);
+    const auto sz = ftell(f);
+    if (sz <= 0) {
+        fclose(f);
+        return {};
+    }
+    fseek(f, 0, SEEK_SET);
+    auto buf = Buffer::create(sz);
+    buf->setSize(sz);
+    const auto r = fread(buf->mData, 1, sz, f);
+    fclose(f);
+    if (r != sz)
+        return {};
+    return buf;
 }
 
 }} // namespace reckoning::buffer

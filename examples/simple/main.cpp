@@ -1,6 +1,7 @@
 #include <event/Loop.h>
 #include <event/Signal.h>
 #include <log/Log.h>
+#include <net/Fetch.h>
 #include <net/TcpSocket.h>
 #include <net/TcpServer.h>
 #include <net/HttpClient.h>
@@ -141,6 +142,13 @@ int main(int argc, char** argv)
         fwrite(buffer->data(), buffer->size(), 1, f);
     });
     */
+    auto fetch = net::Fetch::create();
+    fetch->fetch("https://www.google.com/").then([](std::shared_ptr<buffer::Buffer>&& buffer) {
+        printf("fetched (goog) %zu\n", buffer->size());
+    });
+    fetch->fetch("/Users/jhanssen/dev/reckoning/CMakeLists.txt").then([](std::shared_ptr<buffer::Buffer>&& buffer) {
+        printf("fetched (file) %zu\n", buffer->size());
+    });
 
     /*
     auto ws = net::WebSocketClient::create("ws://demos.kaazing.com/echo");
@@ -156,6 +164,7 @@ int main(int argc, char** argv)
     ws->write("foo bar", 7);
     */
 
+    /*
     std::shared_ptr<net::TcpSocket> socket = net::TcpSocket::create();
     socket->onStateChanged().connect([](net::TcpSocket::State state) {
             Log(Log::Info) << "socket state change" << static_cast<int>(state);
@@ -170,6 +179,7 @@ int main(int argc, char** argv)
     socket->connect("www.google.com", 80);
     //socket->connect("www.vg.no", 443, net::TcpSocket::TLS);
     socket->write("GET / HTTP/1.0\r\nHost: www.google.no\r\n\r\n", 39);
+    */
     /*
     auto http = net::HttpClient::create();
     http->onResponse().connect([](net::HttpClient::Response&& response) {
