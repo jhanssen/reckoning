@@ -2,11 +2,13 @@
 #define FETCH_H
 
 #include <buffer/Buffer.h>
+#include <buffer/Pool.h>
 #include <event/Loop.h>
 #include <event/Then.h>
 #include <pool/Pool.h>
 #include <util/Creatable.h>
 #include <net/HttpClient.h>
+#include <net/TcpSocket.h>
 #include <memory>
 #include <string>
 
@@ -57,7 +59,7 @@ inline event::Then<std::shared_ptr<buffer::Buffer> >& Fetch::fetch(const std::st
             // no, http?
             job->http = HttpClient::create(uri);
             job->http->onBodyData().connect([job](std::shared_ptr<buffer::Buffer>&& buf) {
-                job->buffer = buffer::Buffer::concat(std::move(job->buffer), std::move(buf));
+                job->buffer = buffer::Pool<20, TcpSocket::BufferSize>::pool().concat(std::move(job->buffer), std::move(buf));
             });
             job->http->onComplete().connect([job]() {
                 job->then.resolve(std::move(job->buffer));
