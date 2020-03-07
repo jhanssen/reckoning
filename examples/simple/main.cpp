@@ -6,6 +6,7 @@
 #include <net/TcpServer.h>
 #include <net/HttpClient.h>
 #include <net/WebSocketClient.h>
+#include <image/Decoder.h>
 #include <serializer/Serializer.h>
 #include <args/Args.h>
 #include <args/Parser.h>
@@ -143,11 +144,12 @@ int main(int argc, char** argv)
     });
     */
     auto fetch = net::Fetch::create();
-    fetch->fetch("https://www.google.com/").then([](std::shared_ptr<buffer::Buffer>&& buffer) {
+    auto decoder = image::Decoder::create();
+    fetch->fetch("https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png").then([&decoder](std::shared_ptr<buffer::Buffer>&& buffer) {
         printf("fetched (goog) %zu\n", buffer->size());
-    });
-    fetch->fetch("/Users/jhanssen/dev/reckoning/CMakeLists.txt").then([](std::shared_ptr<buffer::Buffer>&& buffer) {
-        printf("fetched (file) %zu\n", buffer->size());
+        decoder->decode(std::move(buffer)).then([](image::Decoder::Image&& image) {
+            printf("decoded to %zu\n", image.data->size());
+        });
     });
 
     /*

@@ -9,12 +9,14 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 option(RECKONING_EXAMPLES "Build examples" ON)
+option(RECKONING_UI "Build UI components" ON)
 
 include(CheckCSourceCompiles)
 include(CheckCXXSourceCompiles)
 include(cmake/functions.cmake)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/cmake)
+set(RECKONING_CMAKE_DIR ${CMAKE_CURRENT_LIST_DIR}/cmake)
 
 check_c_source_compiles("
     #include <sys/types.h>

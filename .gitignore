@@ -5,6 +5,7 @@ examples/CMakeFiles/*
 Makefile
 cmake/config.h
 cmake_install.cmake
+compile_commands.json
 bin/*
 *.dylib
 *.so
