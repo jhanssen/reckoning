@@ -29,8 +29,6 @@ struct function_traits<R(Args...)>
         static_assert(N < arity, "error: invalid parameter index.");
         using type = typename std::tuple_element<N,std::tuple<Args...>>::type;
     };
-
-    using arg0_type = typename std::conditional<(arity > 0), typename argument<0>::type, void>::type;
 };
 
 // member function pointer
@@ -65,8 +63,6 @@ public:
         static_assert(N < arity, "error: invalid parameter index.");
         using type = typename call_type::template argument<N+1>::type;
     };
-
-    using arg0_type = typename std::conditional<(arity > 0), typename argument<0>::type, void>::type;
 };
 
 template<class F>

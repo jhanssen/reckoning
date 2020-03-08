@@ -150,6 +150,8 @@ int main(int argc, char** argv)
         return decoder->decode(std::move(buffer));
     }).then([](image::Decoder::Image&& image) {
         printf("decoded to %zu\n", image.data->size());
+    }).then([]() {
+        printf("flott?\n");
     });
 ;
     fetch->fetch("/usr/share/doc/bash/bash.html").then([](std::shared_ptr<buffer::Buffer>&& buffer) {
