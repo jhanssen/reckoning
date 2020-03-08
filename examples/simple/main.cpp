@@ -145,15 +145,53 @@ int main(int argc, char** argv)
     */
     auto fetch = net::Fetch::create();
     auto decoder = image::Decoder::create();
-    fetch->fetch("https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png").then([&decoder](std::shared_ptr<buffer::Buffer>&& buffer) {
+    fetch->fetch("https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png").then([&decoder](std::shared_ptr<buffer::Buffer>&& buffer) -> auto& {
         printf("fetched (goog) %zu\n", buffer->size());
-        decoder->decode(std::move(buffer)).then([](image::Decoder::Image&& image) {
-            printf("decoded to %zu\n", image.data->size());
-        });
+        return decoder->decode(std::move(buffer));
+    }).then([](image::Decoder::Image&& image) {
+        printf("decoded to %zu\n", image.data->size());
     });
+;
     fetch->fetch("/usr/share/doc/bash/bash.html").then([](std::shared_ptr<buffer::Buffer>&& buffer) {
         printf("fetched (file) %zu\n", buffer->size());
     });
+
+    /*
+    std::shared_ptr<event::Then<float> > then3 = std::make_shared<event::Then<float> >();
+    auto ball = [then3](int floff) -> event::Then<float>& {
+        return *then3.get();
+    };
+    printf("uuuh %p\n", then3.get());
+
+    std::shared_ptr<event::Then<std::string> > then4 = std::make_shared<event::Then<std::string> >();
+    auto ball2 = [then4](float fliff) -> event::Then<std::string>& {
+        return *then4.get();
+    };
+
+    then3->resolve(99.9);
+
+    event::Then<std::string> then2;
+    then2.then([](std::string&& arg) {
+        printf("hello %s\n", arg.c_str());
+        return 20;
+    }).then([&ball](int arg) -> event::Then<float>& {
+        printf("got %d\n", arg);
+        printf("wippo %p\n", &ball(arg));
+        return ball(arg);
+    }).then([&ball2](float trall) -> event::Then<std::string>& {
+        printf("got floaty %f\n", trall);
+        return ball2(trall);
+    }).then([](std::string&& fliff) {
+        printf("and finally fliff '%s'\n", fliff.c_str());
+    });
+    std::string bkll("abc");
+    then2.resolve(std::move(bkll));
+
+    loop->post([then3, then4]() {
+        printf("oky %p\n", then3.get());
+        then4->resolve("bokko bokk");
+    });
+    */
 
     /*
     auto ws = net::WebSocketClient::create("ws://demos.kaazing.com/echo");
