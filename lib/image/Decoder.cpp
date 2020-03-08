@@ -27,12 +27,14 @@ static inline Decoder::Image decodePNG(const std::shared_ptr<buffer::Buffer>& da
     }
     auto info_ptr = png_create_info_struct(png_ptr);
     if (!info_ptr) {
+        png_destroy_read_struct(&png_ptr, nullptr, nullptr);
         return {};
     }
 
     Decoder::Image image;
 
     if (setjmp(png_jmpbuf(png_ptr))) {
+        png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
         return {};
     }
     struct PngData {
@@ -95,6 +97,7 @@ static inline Decoder::Image decodePNG(const std::shared_ptr<buffer::Buffer>& da
 
     png_read_update_info(png_ptr, info_ptr);
     if (setjmp(png_jmpbuf(png_ptr))) {
+        png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
         return {};
     }
 
