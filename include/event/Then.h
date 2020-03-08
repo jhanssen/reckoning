@@ -351,6 +351,7 @@ public:
             func(std::move(arg));
         };
         auto loop = event::Loop::loop();
+        assert(!mFailed || !mResolved);
         if (mFailed) {
             loop->post([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
                 fail(std::move(failure));
