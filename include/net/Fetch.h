@@ -3,7 +3,6 @@
 
 #include <buffer/Buffer.h>
 #include <buffer/Pool.h>
-#include <event/Loop.h>
 #include <event/Then.h>
 #include <pool/Pool.h>
 #include <util/Creatable.h>
@@ -34,7 +33,6 @@ private:
         {
             http = {};
             buffer = {};
-            then.clear();
         }
     };
 
@@ -49,12 +47,9 @@ inline event::Then<std::shared_ptr<buffer::Buffer> >& Fetch::fetch(const std::st
         // does this look like a file path?
         if (uri.find("://") == std::string::npos) {
             // yes, load from file
-            auto loop = event::Loop::loop();
             auto buf = buffer::Buffer::fromFile(uri);
             job->then.resolve(std::move(buf));
-            loop->post([job]() {
-                job->clear();
-            });
+            job->clear();
         } else {
             // no, http?
             job->http = HttpClient::create(uri);
@@ -63,10 +58,7 @@ inline event::Then<std::shared_ptr<buffer::Buffer> >& Fetch::fetch(const std::st
             });
             job->http->onComplete().connect([job]() {
                 job->then.resolve(std::move(job->buffer));
-                auto loop = event::Loop::loop();
-                loop->post([job]() {
-                    job->clear();
-                });
+                job->clear();
             });
         }
     }

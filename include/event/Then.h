@@ -19,6 +19,7 @@ public:
     void then(std::function<void(T&&)>&& functor);
     void resolve(T&& value);
 
+private:
     void clear();
 
 private:
@@ -41,6 +42,7 @@ void Then<T>::then(std::function<void(T&&)>&& functor)
     util::SpinLocker locker(mLock);
     if (mValue.has_value()) {
         functor(std::move(mValue.value()));
+        clear();
     } else {
         mLoop = Loop::loop();
         mFunctor = std::move(functor);
@@ -57,6 +59,7 @@ void Then<T>::resolve(T&& value)
             loop->send(std::move(mFunctor), std::forward<T>(value));
         } else {
             mFunctor(std::forward<T>(value));
+            clear();
         }
     } else {
         mValue = std::forward<T>(value);
