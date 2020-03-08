@@ -241,8 +241,7 @@ public:
                   && detail::isVoid<typename util::function_traits<Functor>::return_type::ArgType>, int
               > = 0) -> Then<typename util::function_traits<Functor>::return_type::ArgType>&
     {
-        using Return = typename util::function_traits<Functor>::return_type;
-        std::shared_ptr<Then<typename Return::ArgType> > chain = std::make_shared<Then<typename Return::ArgType> >();
+        std::shared_ptr<Then<void> > chain = std::make_shared<Then<void> >();
         util::SpinLocker locker(mLock);
         mNext = [chain, func = std::move(func)]() mutable {
             auto maybeFail = func();
@@ -514,8 +513,7 @@ public:
                   && detail::isVoid<typename util::function_traits<Functor>::return_type::ArgType>, int
               > = 0) -> Then<typename util::function_traits<Functor>::return_type::ArgType>&
     {
-        using Return = typename util::function_traits<Functor>::return_type;
-        std::shared_ptr<Then<typename Return::ArgType> > chain = std::make_shared<Then<typename Return::ArgType> >();
+        std::shared_ptr<Then<void> > chain = std::make_shared<Then<void> >();
         util::SpinLocker locker(mLock);
         mNext = [chain, func = std::move(func)](Arg&& arg) mutable {
             auto maybeFail = func(std::forward<Arg>(arg));
