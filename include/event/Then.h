@@ -27,6 +27,9 @@ inline constexpr bool isVoid = std::is_void<typename std::decay<T>::type>::value
 template<typename T, typename U>
 inline constexpr bool isSame = std::is_same<typename std::decay<T>::type, typename std::decay<U>::type>::value;
 
+template<typename Traits>
+inline constexpr bool hasAtleastOneArgument = Traits::arity > 0;
+
 template<typename Traits, typename = void>
 struct Arg0Type
 {
@@ -34,7 +37,7 @@ struct Arg0Type
 };
 
 template<typename Traits>
-struct Arg0Type<Traits, std::void_t<typename std::enable_if<Traits::arity == 1>::type> >
+struct Arg0Type<Traits, std::void_t<typename std::enable_if<hasAtleastOneArgument<Traits> >::type> >
 {
     using type = typename Traits::template argument<0>::type;
 };
