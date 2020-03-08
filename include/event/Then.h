@@ -180,12 +180,12 @@ public:
         };
         assert(!mFailed || !mResolved);
         if (mFailed) {
-            loop->send([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
+            loop->post([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
                 fail(std::move(failure));
             });
         }
         if (mResolved) {
-            loop->send([next = std::move(mNext)]() mutable {
+            loop->post([next = std::move(mNext)]() mutable {
                 next();
             });
         } else {
@@ -219,12 +219,12 @@ public:
         auto loop = event::Loop::loop();
         assert(!mFailed || !mResolved);
         if (mFailed) {
-            loop->send([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
+            loop->post([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
                 fail(std::move(failure));
             });
         }
         if (mResolved) {
-            loop->send([next = std::move(mNext)]() mutable {
+            loop->post([next = std::move(mNext)]() mutable {
                 next();
             });
         } else {
@@ -258,12 +258,12 @@ public:
         auto loop = event::Loop::loop();
         assert(!mFailed || !mResolved);
         if (mFailed) {
-            loop->send([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
+            loop->post([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
                 fail(std::move(failure));
             });
         }
         if (mResolved) {
-            loop->send([next = std::move(mNext)]() mutable {
+            loop->post([next = std::move(mNext)]() mutable {
                 next();
             });
         } else {
@@ -293,12 +293,12 @@ public:
         auto loop = event::Loop::loop();
         assert(!mFailed || !mResolved);
         if (mFailed) {
-            loop->send([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
+            loop->post([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
                 fail(std::move(failure));
             });
         }
         if (mResolved) {
-            loop->send([next = std::move(mNext)]() mutable {
+            loop->post([next = std::move(mNext)]() mutable {
                 next();
             });
         } else {
@@ -326,12 +326,12 @@ public:
         auto loop = event::Loop::loop();
         assert(!mFailed || !mResolved);
         if (mFailed) {
-            loop->send([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
+            loop->post([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
                 fail(std::move(failure));
             });
         }
         if (mResolved) {
-            loop->send([next = std::move(mNext)]() mutable {
+            loop->post([next = std::move(mNext)]() mutable {
                 next();
             });
         } else {
@@ -353,7 +353,7 @@ public:
         };
         auto loop = event::Loop::loop();
         if (mFailed) {
-            loop->send([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
+            loop->post([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
                 fail(std::move(failure));
             });
         } else {
@@ -450,12 +450,12 @@ public:
         };
         assert(!mFailed || !mArg.has_value());
         if (mFailed) {
-            loop->send([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
+            loop->post([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
                 fail(std::move(failure));
             });
         }
         if (mArg.has_value()) {
-            loop->send([next = std::move(mNext), arg = std::move(mArg.value())]() mutable {
+            loop->post([next = std::move(mNext), arg = std::move(mArg.value())]() mutable {
                 next(std::move(arg));
             });
         } else {
@@ -485,12 +485,12 @@ public:
         auto loop = event::Loop::loop();
         assert(!mFailed || !mArg.has_value());
         if (mFailed) {
-            loop->send([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
+            loop->post([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
                 fail(std::move(failure));
             });
         }
         if (mArg.has_value()) {
-            loop->send([next = std::move(mNext), arg = std::move(mArg.value())]() mutable {
+            loop->post([next = std::move(mNext), arg = std::move(mArg.value())]() mutable {
                 next(std::move(arg));
             });
         } else {
@@ -518,12 +518,12 @@ public:
         auto loop = event::Loop::loop();
         assert(!mFailed || !mArg.has_value());
         if (mFailed) {
-            loop->send([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
+            loop->post([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
                 fail(std::move(failure));
             });
         }
         if (mArg.has_value()) {
-            loop->send([next = std::move(mNext), arg = std::move(mArg.value())]() mutable {
+            loop->post([next = std::move(mNext), arg = std::move(mArg.value())]() mutable {
                 next(std::move(arg));
             });
         } else {
@@ -546,12 +546,12 @@ public:
         auto loop = event::Loop::loop();
         assert(!mFailed || !mArg.has_value());
         if (mFailed) {
-            loop->send([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
+            loop->post([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
                 fail(std::move(failure));
             });
         }
         if (mFailed) {
-            loop->send([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
+            loop->post([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
                 fail(std::move(failure));
             });
         } else {
