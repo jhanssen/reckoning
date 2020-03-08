@@ -32,15 +32,15 @@ static inline Decoder::Image decodePNG(const std::shared_ptr<buffer::Buffer>& da
     }
 
     Decoder::Image image;
+    struct PngData {
+        const std::shared_ptr<buffer::Buffer>& data;
+        size_t read;
+    } pngData = { data, 0 };
 
     if (setjmp(png_jmpbuf(png_ptr))) {
         png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
         return {};
     }
-    struct PngData {
-        const std::shared_ptr<buffer::Buffer>& data;
-        size_t read;
-    } pngData = { data, 0 };
     png_set_read_fn(png_ptr, &pngData, [](png_structp png_ptr, png_bytep outBytes, png_size_t byteCountToRead) -> void {
         png_voidp io_ptr = png_get_io_ptr(png_ptr);
         PngData* data = static_cast<PngData*>(io_ptr);
