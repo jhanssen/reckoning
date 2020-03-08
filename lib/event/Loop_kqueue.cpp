@@ -87,21 +87,24 @@ int Loop::execute(std::chrono::milliseconds timeout)
     int e;
     for (;;) {
         // execute all events
-        {
-            std::lock_guard<std::mutex> locker(mMutex);
-            // are we stopped?
-            if (mStopped) {
-                // shutdown threads etc
-                net::Resolver::resolver().shutdown();
+        for (;;) {
+            {
+                std::lock_guard<std::mutex> locker(mMutex);
+                // are we stopped?
+                if (mStopped) {
+                    // shutdown threads etc
+                    net::Resolver::resolver().shutdown();
 
-                return mStatus;
+                    return mStatus;
+                }
+
+                events = std::move(mEvents);
+                if (events.empty())
+                    break;
             }
-
-            events = std::move(mEvents);
-
-        }
-        for (const auto& e : events) {
-            e->execute();
+            for (const auto& e : events) {
+                e->execute();
+            }
         }
 
         // process new fds
