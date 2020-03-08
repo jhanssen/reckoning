@@ -628,11 +628,6 @@ public:
             loop->post([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
                 fail(std::move(failure));
             });
-        }
-        if (mFailed) {
-            loop->post([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
-                fail(std::move(failure));
-            });
         } else {
             mLoop = loop;
         }
