@@ -150,8 +150,14 @@ int main(int argc, char** argv)
         return decoder->decode(std::move(buffer));
     }).then([](image::Decoder::Image&& image) {
         printf("decoded to %zu\n", image.data->size());
-    }).then([]() {
+    }).then([]() -> reckoning::event::MaybeFail<void> {
         printf("flott?\n");
+        if (true) {
+            return reckoning::event::Fail("some error");
+        }
+        return {};
+    }).fail([](std::string&& err) {
+        printf("failed... '%s'\n", err.c_str());
     });
 ;
     fetch->fetch("/usr/share/doc/bash/bash.html").then([](std::shared_ptr<buffer::Buffer>&& buffer) {
