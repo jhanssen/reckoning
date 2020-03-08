@@ -35,7 +35,11 @@ public:
     using ArgType = typename std::decay<Arg>::type;
 
     template<typename Functor>
-    auto then(Functor&& func, typename std::enable_if_t<detail::isSame<typename util::function_traits<typename std::decay<Functor>::type>::arg0_type, Arg> && detail::isThen<typename util::function_traits<typename std::decay<Functor>::type>::return_type>, int> = 0) -> typename util::function_traits<typename std::decay<Functor>::type>::return_type&
+    auto then(Functor&& func,
+              typename std::enable_if_t<
+                  detail::isSame<typename util::function_traits<typename std::decay<Functor>::type>::arg0_type, Arg>
+                  && detail::isThen<typename util::function_traits<typename std::decay<Functor>::type>::return_type
+              >, int> = 0) -> typename util::function_traits<typename std::decay<Functor>::type>::return_type&
     {
         using Return = typename std::decay<typename util::function_traits<typename std::decay<Functor>::type>::return_type>::type;
         using ArgOfThen = typename Return::ArgType;
@@ -50,7 +54,7 @@ public:
             });
         };
         if (mArg.has_value()) {
-            loop->post([next = std::move(mNext), arg = std::move(mArg.value())]() mutable {
+            loop->send([next = std::move(mNext), arg = std::move(mArg.value())]() mutable {
                 next(std::move(arg));
             });
         } else {
@@ -60,7 +64,12 @@ public:
     }
 
     template<typename Functor>
-    auto then(Functor&& func, typename std::enable_if_t<detail::isSame<typename util::function_traits<typename std::decay<Functor>::type>::arg0_type, Arg> && !detail::isThen<typename util::function_traits<typename std::decay<Functor>::type>::return_type> && !detail::isVoid<typename util::function_traits<typename std::decay<Functor>::type>::return_type>, int> = 0) -> Then<typename util::function_traits<typename std::decay<Functor>::type>::return_type>&
+    auto then(Functor&& func,
+              typename std::enable_if_t<
+                  detail::isSame<typename util::function_traits<typename std::decay<Functor>::type>::arg0_type, Arg>
+                  && !detail::isThen<typename util::function_traits<typename std::decay<Functor>::type>::return_type>
+                  && !detail::isVoid<typename util::function_traits<typename std::decay<Functor>::type>::return_type>, int
+              > = 0) -> Then<typename util::function_traits<typename std::decay<Functor>::type>::return_type>&
     {
         using Return = typename std::decay<typename util::function_traits<typename std::decay<Functor>::type>::return_type>::type;
         std::shared_ptr<Then<Return> > chain = std::make_shared<Then<Return> >();
@@ -70,7 +79,7 @@ public:
         };
         auto loop = event::Loop::loop();
         if (mArg.has_value()) {
-            loop->post([next = std::move(mNext), arg = std::move(mArg.value())]() mutable {
+            loop->send([next = std::move(mNext), arg = std::move(mArg.value())]() mutable {
                 next(std::move(arg));
             });
         } else {
@@ -80,7 +89,11 @@ public:
     }
 
     template<typename Functor>
-    auto then(Functor&& func, typename std::enable_if_t<detail::isSame<typename util::function_traits<typename std::decay<Functor>::type>::arg0_type, Arg> && !detail::isThen<typename util::function_traits<typename std::decay<Functor>::type>::return_type> && detail::isVoid<typename util::function_traits<typename std::decay<Functor>::type>::return_type>, int> = 0) -> void
+    auto then(Functor&& func,
+              typename std::enable_if_t<
+                  detail::isSame<typename util::function_traits<typename std::decay<Functor>::type>::arg0_type, Arg>
+                  && detail::isVoid<typename util::function_traits<typename std::decay<Functor>::type>::return_type>, int
+              > = 0) -> void
     {
         util::SpinLocker locker(mLock);
         mNext = [func = std::move(func)](Arg&& arg) mutable {
@@ -88,7 +101,7 @@ public:
         };
         auto loop = event::Loop::loop();
         if (mArg.has_value()) {
-            loop->post([next = std::move(mNext), arg = std::move(mArg.value())]() mutable {
+            loop->send([next = std::move(mNext), arg = std::move(mArg.value())]() mutable {
                 next(std::move(arg));
             });
         } else {
