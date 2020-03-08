@@ -37,9 +37,9 @@ public:
     template<typename Functor>
     auto then(Functor&& func,
               typename std::enable_if_t<
-                  detail::isSame<typename util::function_traits<typename std::decay<Functor>::type>::arg0_type, Arg>
-                  && detail::isThen<typename util::function_traits<typename std::decay<Functor>::type>::return_type
-              >, int> = 0) -> typename util::function_traits<typename std::decay<Functor>::type>::return_type&
+                  detail::isSame<typename util::function_traits<Functor>::arg0_type, Arg>
+                  && detail::isThen<typename util::function_traits<Functor>::return_type
+              >, int> = 0) -> typename util::function_traits<Functor>::return_type&
     {
         using Return = typename std::decay<typename util::function_traits<typename std::decay<Functor>::type>::return_type>::type;
         using ArgOfThen = typename Return::ArgType;
@@ -66,10 +66,10 @@ public:
     template<typename Functor>
     auto then(Functor&& func,
               typename std::enable_if_t<
-                  detail::isSame<typename util::function_traits<typename std::decay<Functor>::type>::arg0_type, Arg>
-                  && !detail::isThen<typename util::function_traits<typename std::decay<Functor>::type>::return_type>
-                  && !detail::isVoid<typename util::function_traits<typename std::decay<Functor>::type>::return_type>, int
-              > = 0) -> Then<typename util::function_traits<typename std::decay<Functor>::type>::return_type>&
+                  detail::isSame<typename util::function_traits<Functor>::arg0_type, Arg>
+                  && !detail::isThen<typename util::function_traits<Functor>::return_type>
+                  && !detail::isVoid<typename util::function_traits<Functor>::return_type>, int
+              > = 0) -> Then<typename util::function_traits<Functor>::return_type>&
     {
         using Return = typename std::decay<typename util::function_traits<typename std::decay<Functor>::type>::return_type>::type;
         std::shared_ptr<Then<Return> > chain = std::make_shared<Then<Return> >();
@@ -91,8 +91,8 @@ public:
     template<typename Functor>
     auto then(Functor&& func,
               typename std::enable_if_t<
-                  detail::isSame<typename util::function_traits<typename std::decay<Functor>::type>::arg0_type, Arg>
-                  && detail::isVoid<typename util::function_traits<typename std::decay<Functor>::type>::return_type>, int
+                  detail::isSame<typename util::function_traits<Functor>::arg0_type, Arg>
+                  && detail::isVoid<typename util::function_traits<Functor>::return_type>, int
               > = 0) -> void
     {
         util::SpinLocker locker(mLock);
