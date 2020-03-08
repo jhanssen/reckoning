@@ -148,13 +148,14 @@ int main(int argc, char** argv)
     fetch->fetch("https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png").then([&decoder](std::shared_ptr<buffer::Buffer>&& buffer) -> auto& {
         printf("fetched (goog) %zu\n", buffer->size());
         return decoder->decode(std::move(buffer));
-    }).then([](image::Decoder::Image&& image) {
+    }).then([](image::Decoder::Image&& image) -> reckoning::event::MaybeFail<int> {
         printf("decoded to %zu\n", image.data->size());
-    }).then([]() -> reckoning::event::MaybeFail<void> {
-        printf("flott?\n");
         if (true) {
-            return reckoning::event::Fail("some error");
+            return reckoning::event::Fail("ball");
         }
+        return 50;
+    }).then([](int ting) -> reckoning::event::MaybeFail<void> {
+        printf("flott? %d\n", ting);
         return {};
     }).fail([](std::string&& err) {
         printf("failed... '%s'\n", err.c_str());

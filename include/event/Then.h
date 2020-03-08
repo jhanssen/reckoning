@@ -444,10 +444,91 @@ public:
             newchain.then([chain](ArgOfThen&& arg) {
                 return chain->resolve(std::forward<ArgOfThen>(arg));
             });
+            newchain.fail([chain](std::string&& failure) {
+                chain->reject(std::move(failure));
+            });
         };
         mFail = [chain](std::string&& failure) {
             chain->reject(std::move(failure));
         };
+        assert(!mFailed || !mArg.has_value());
+        if (mFailed) {
+            loop->post([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
+                fail(std::move(failure));
+            });
+        }
+        if (mArg.has_value()) {
+            loop->post([next = std::move(mNext), arg = std::move(mArg.value())]() mutable {
+                next(std::move(arg));
+            });
+        } else {
+            mLoop = loop;
+        }
+        return *chain.get();
+    }
+
+    template<typename Functor>
+    auto then(Functor&& func,
+              typename std::enable_if_t<
+                  detail::isSame<typename detail::Arg0Type<typename util::function_traits<Functor> >::type, Arg>
+                  && detail::isMaybeFail<typename util::function_traits<Functor>::return_type>
+                  && !detail::isVoid<typename util::function_traits<Functor>::return_type::ArgType>, int
+              > = 0) -> Then<typename util::function_traits<Functor>::return_type::ArgType>&
+    {
+        using Return = typename util::function_traits<Functor>::return_type;
+        std::shared_ptr<Then<typename Return::ArgType> > chain = std::make_shared<Then<typename Return::ArgType> >();
+        util::SpinLocker locker(mLock);
+        mNext = [chain, func = std::move(func)](Arg&& arg) mutable {
+            auto maybeFail = func(std::forward<Arg>(arg));
+            if (maybeFail.isFail()) {
+                chain->reject(std::move(maybeFail.error()));
+            } else {
+                chain->resolve(std::move(maybeFail.value()));
+            }
+        };
+        mFail = [chain](std::string&& failure) {
+            chain->reject(std::move(failure));
+        };
+        auto loop = event::Loop::loop();
+        assert(!mFailed || !mArg.has_value());
+        if (mFailed) {
+            loop->post([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
+                fail(std::move(failure));
+            });
+        }
+        if (mArg.has_value()) {
+            loop->post([next = std::move(mNext), arg = std::move(mArg.value())]() mutable {
+                next(std::move(arg));
+            });
+        } else {
+            mLoop = loop;
+        }
+        return *chain.get();
+    }
+
+    template<typename Functor>
+    auto then(Functor&& func,
+              typename std::enable_if_t<
+                  detail::isSame<typename detail::Arg0Type<typename util::function_traits<Functor> >::type, Arg>
+                  && detail::isMaybeFail<typename util::function_traits<Functor>::return_type>
+                  && detail::isVoid<typename util::function_traits<Functor>::return_type::ArgType>, int
+              > = 0) -> Then<typename util::function_traits<Functor>::return_type::ArgType>&
+    {
+        using Return = typename util::function_traits<Functor>::return_type;
+        std::shared_ptr<Then<typename Return::ArgType> > chain = std::make_shared<Then<typename Return::ArgType> >();
+        util::SpinLocker locker(mLock);
+        mNext = [chain, func = std::move(func)](Arg&& arg) mutable {
+            auto maybeFail = func(std::forward<Arg>(arg));
+            if (maybeFail.isFail()) {
+                chain->reject(std::move(maybeFail.error()));
+            } else {
+                chain->resolve();
+            }
+        };
+        mFail = [chain](std::string&& failure) {
+            chain->reject(std::move(failure));
+        };
+        auto loop = event::Loop::loop();
         assert(!mFailed || !mArg.has_value());
         if (mFailed) {
             loop->post([fail = std::move(mFail), failure = std::move(mFailure)]() mutable {
