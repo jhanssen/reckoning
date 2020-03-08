@@ -151,6 +151,9 @@ int main(int argc, char** argv)
             printf("decoded to %zu\n", image.data->size());
         });
     });
+    fetch->fetch("/usr/share/doc/bash/bash.html").then([](std::shared_ptr<buffer::Buffer>&& buffer) {
+        printf("fetched (file) %zu\n", buffer->size());
+    });
 
     /*
     auto ws = net::WebSocketClient::create("ws://demos.kaazing.com/echo");
