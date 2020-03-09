@@ -226,7 +226,7 @@ inline std::shared_ptr<Buffer> Buffer::fromFile(const std::string& file)
     buf->setSize(sz);
     const auto r = fread(buf->mData, 1, sz, f);
     fclose(f);
-    if (r != sz)
+    if (r != static_cast<size_t>(sz))
         return {};
     return buf;
 }

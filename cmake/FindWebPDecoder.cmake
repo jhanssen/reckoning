@@ -1,6 +1,6 @@
 find_package(PkgConfig QUIET)
 if(PKG_CONFIG_FOUND)
-  pkg_check_modules(PC_WEBPDECODER QUIET libwebpdecoder)
+    pkg_check_modules(PC_WEBPDECODER QUIET libwebpdecoder libwebp)
 endif()
 
 find_path(WEBPDECODER_INCLUDE_DIR
@@ -11,7 +11,7 @@ mark_as_advanced(WEBPDECODER_INCLUDE_DIR)
 
 # Look for the library (sorted from most current/relevant entry to least).
 find_library(WEBPDECODER_LIBRARY NAMES
-    NAMES webpdecoder
+    NAMES webpdecoder webp
     HINTS ${PC_WEBPDECODER_LIBRARY_DIRS}
     )
 mark_as_advanced(WEBPDECODER_LIBRARY)

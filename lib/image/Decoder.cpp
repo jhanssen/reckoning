@@ -103,14 +103,14 @@ static inline Decoder::Image decodePNG(const std::shared_ptr<buffer::Buffer>& da
 
     const auto rowBytes = png_get_rowbytes(png_ptr, info_ptr);
     png_bytep* row_pointers = static_cast<png_bytep*>(png_malloc(png_ptr, image.height * sizeof(png_bytep)));
-    for (int y = 0; y < image.height; ++y)
+    for (uint32_t y = 0; y < image.height; ++y)
         row_pointers[y] = static_cast<png_bytep>(png_malloc(png_ptr, rowBytes));
 
     png_read_image(png_ptr, row_pointers);
 
     image.data = buffer::Buffer::create(image.height * rowBytes);
     image.data->setSize(0); // append below will increase our size
-    for (int y = 0; y < image.height; ++y)
+    for (uint32_t y = 0; y < image.height; ++y)
         image.data->append(row_pointers[y], rowBytes);
 
     png_read_end(png_ptr, info_ptr);
