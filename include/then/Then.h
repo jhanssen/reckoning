@@ -12,7 +12,7 @@
 #include <cassert>
 
 namespace reckoning {
-namespace event {
+namespace then {
 
 namespace detail {
 struct ThenBase
@@ -713,6 +713,6 @@ Then<Arg>& rejected(std::string&& failure)
     return *rej.get();
 }
 
-}} // namespace reckoning::event
+}} // namespace reckoning::then
 
 #endif // THEN_H

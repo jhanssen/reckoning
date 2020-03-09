@@ -148,15 +148,15 @@ int main(int argc, char** argv)
     fetch->fetch("https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png").then([&decoder](std::shared_ptr<buffer::Buffer>&& buffer) -> auto& {
         printf("fetched (goog) %zu\n", buffer->size());
         if (!buffer) {
-            return reckoning::event::rejected<image::Decoder::Image>("no buffer from fetch");
+            return reckoning::then::rejected<image::Decoder::Image>("no buffer from fetch");
         }
         return decoder->decode(std::move(buffer));
-    }).then([](image::Decoder::Image&& image) -> reckoning::event::MaybeFail<size_t> {
+    }).then([](image::Decoder::Image&& image) -> reckoning::then::MaybeFail<size_t> {
         if (false || !image.data) {
-            return reckoning::event::Fail("ball");
+            return reckoning::then::Fail("ball");
         }
         return image.data->size();
-    }).then([](size_t ting) -> reckoning::event::MaybeFail<void> {
+    }).then([](size_t ting) -> reckoning::then::MaybeFail<void> {
         printf("decoded to %zu\n", ting);
         return {};
     }).fail([](std::string&& err) {
@@ -168,28 +168,28 @@ int main(int argc, char** argv)
     });
 
     /*
-    std::shared_ptr<event::Then<float> > then3 = std::make_shared<event::Then<float> >();
-    auto ball = [then3](int floff) -> event::Then<float>& {
+    std::shared_ptr<then::Then<float> > then3 = std::make_shared<then::Then<float> >();
+    auto ball = [then3](int floff) -> then::Then<float>& {
         return *then3.get();
     };
     printf("uuuh %p\n", then3.get());
 
-    std::shared_ptr<event::Then<std::string> > then4 = std::make_shared<event::Then<std::string> >();
-    auto ball2 = [then4](float fliff) -> event::Then<std::string>& {
+    std::shared_ptr<then::Then<std::string> > then4 = std::make_shared<then::Then<std::string> >();
+    auto ball2 = [then4](float fliff) -> then::Then<std::string>& {
         return *then4.get();
     };
 
     then3->resolve(99.9);
 
-    event::Then<std::string> then2;
+    then::Then<std::string> then2;
     then2.then([](std::string&& arg) {
         printf("hello %s\n", arg.c_str());
         return 20;
-    }).then([&ball](int arg) -> event::Then<float>& {
+    }).then([&ball](int arg) -> then::Then<float>& {
         printf("got %d\n", arg);
         printf("wippo %p\n", &ball(arg));
         return ball(arg);
-    }).then([&ball2](float trall) -> event::Then<std::string>& {
+    }).then([&ball2](float trall) -> then::Then<std::string>& {
         printf("got floaty %f\n", trall);
         return ball2(trall);
     }).then([](std::string&& fliff) {

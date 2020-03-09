@@ -3,7 +3,7 @@
 
 #include <buffer/Buffer.h>
 #include <buffer/Pool.h>
-#include <event/Then.h>
+#include <then/Then.h>
 #include <pool/Pool.h>
 #include <util/Creatable.h>
 #include <net/HttpClient.h>
@@ -17,7 +17,7 @@ namespace net {
 class Fetch : public util::Creatable<Fetch>
 {
 public:
-    event::Then<std::shared_ptr<buffer::Buffer> >& fetch(const std::string& uri);
+    then::Then<std::shared_ptr<buffer::Buffer> >& fetch(const std::string& uri);
 
 protected:
     Fetch() { };
@@ -27,7 +27,7 @@ private:
     {
         std::shared_ptr<HttpClient> http;
         std::shared_ptr<buffer::Buffer> buffer;
-        event::Then<std::shared_ptr<buffer::Buffer> > then;
+        then::Then<std::shared_ptr<buffer::Buffer> > then;
 
         void clear()
         {
@@ -40,7 +40,7 @@ private:
     Fetch(const Fetch&) = delete;
 };
 
-inline event::Then<std::shared_ptr<buffer::Buffer> >& Fetch::fetch(const std::string& uri)
+inline then::Then<std::shared_ptr<buffer::Buffer> >& Fetch::fetch(const std::string& uri)
 {
     auto job = pool::Pool<Job, 10>::pool().get();
     {

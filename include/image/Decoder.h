@@ -2,7 +2,7 @@
 #define DECODER_H
 
 #include <buffer/Buffer.h>
-#include <event/Then.h>
+#include <then/Then.h>
 #include <pool/Pool.h>
 #include <util/Creatable.h>
 #include <condition_variable>
@@ -29,7 +29,7 @@ public:
         std::shared_ptr<buffer::Buffer> data;
     };
 
-    event::Then<Image>& decode(std::shared_ptr<buffer::Buffer>&& buffer);
+    then::Then<Image>& decode(std::shared_ptr<buffer::Buffer>&& buffer);
 
 protected:
     Decoder();
@@ -38,7 +38,7 @@ private:
     struct Job : public util::Creatable<Job>
     {
         std::shared_ptr<buffer::Buffer> data;
-        event::Then<Image> then;
+        then::Then<Image> then;
     };
 
     std::mutex mMutex;
@@ -51,7 +51,7 @@ private:
     Decoder(const Decoder&) = delete;
 };
 
-inline event::Then<Decoder::Image>& Decoder::decode(std::shared_ptr<buffer::Buffer>&& buffer)
+inline then::Then<Decoder::Image>& Decoder::decode(std::shared_ptr<buffer::Buffer>&& buffer)
 {
     auto job = pool::Pool<Job, 10>::pool().get();
     job->data = std::move(buffer);
