@@ -168,11 +168,11 @@ public:
         mNext = [chain, func = std::move(func)]() mutable {
             //chain->resolve(func(std::forward<Arg>(arg)));
             auto& newchain = func();
-            newchain.then([chain](ArgOfThen&& arg) {
-                return chain->resolve(std::forward<ArgOfThen>(arg));
-            });
             newchain.fail([chain](std::string&& failure) {
                 chain->reject(std::move(failure));
+            });
+            newchain.then([chain](ArgOfThen&& arg) {
+                return chain->resolve(std::forward<ArgOfThen>(arg));
             });
         };
         mFail = [chain](std::string&& failure) {
@@ -441,11 +441,11 @@ public:
         mNext = [chain, func = std::move(func)](Arg&& arg) mutable {
             //chain->resolve(func(std::forward<Arg>(arg)));
             auto& newchain = func(std::forward<Arg>(arg));
-            newchain.then([chain](ArgOfThen&& arg) {
-                return chain->resolve(std::forward<ArgOfThen>(arg));
-            });
             newchain.fail([chain](std::string&& failure) {
                 chain->reject(std::move(failure));
+            });
+            newchain.then([chain](ArgOfThen&& arg) {
+                return chain->resolve(std::forward<ArgOfThen>(arg));
             });
         };
         mFail = [chain](std::string&& failure) {
@@ -691,8 +691,27 @@ private:
     std::weak_ptr<event::Loop> mLoop;
     std::string mFailure;
     bool mFailed { false };
-
 };
+
+template<typename Arg>
+Then<Arg>& resolved(Arg&& arg)
+{
+    // should be fine to just have one Then<> here since the resolving should be immediate after this function is called
+    static thread_local std::shared_ptr<Then<Arg> > res;
+    res = std::make_shared<Then<Arg> >();
+    res->resolve(std::forward<Arg>(arg));
+    return *res.get();
+}
+
+template<typename Arg>
+Then<Arg>& rejected(std::string&& failure)
+{
+    // should be fine to just have one Then<> here since the rejection should be immediate after this function is called
+    static thread_local std::shared_ptr<Then<Arg> > rej;
+    rej = std::make_shared<Then<Arg> >();
+    rej->reject(std::move(failure));
+    return *rej.get();
+}
 
 }} // namespace reckoning::event
 

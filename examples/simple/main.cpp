@@ -147,6 +147,9 @@ int main(int argc, char** argv)
     auto decoder = image::Decoder::create();
     fetch->fetch("https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png").then([&decoder](std::shared_ptr<buffer::Buffer>&& buffer) -> auto& {
         printf("fetched (goog) %zu\n", buffer->size());
+        if (!buffer) {
+            return reckoning::event::rejected<image::Decoder::Image>("no buffer from fetch");
+        }
         return decoder->decode(std::move(buffer));
     }).then([](image::Decoder::Image&& image) -> reckoning::event::MaybeFail<size_t> {
         if (false || !image.data) {
