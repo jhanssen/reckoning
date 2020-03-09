@@ -25,6 +25,7 @@ if (WEBPDECODER_INCLUDE_DIR AND WEBPDECODER_LIBRARY)
             IMPORTED_LINK_INTERFACE_LANGUAGES "C"
             IMPORTED_LOCATION ${WEBPDECODER_LIBRARY})
     endif()
+    message("-- Found WebP: ${WEBPDECODER_LIBRARY}")
 else()
     if (WEBPDECODER_FIND_REQUIRED)
         message(FATAL_ERROR "WebP decoder not found")

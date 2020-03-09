@@ -25,6 +25,7 @@ if (CARES_INCLUDE_DIR AND CARES_LIBRARY)
             IMPORTED_LINK_INTERFACE_LANGUAGES "C"
             IMPORTED_LOCATION ${CARES_LIBRARY})
     endif()
+    message("-- Found C-ARES: ${CARES_LIBRARY}")
 else()
     if (CARES_FIND_REQUIRED)
         message(FATAL_ERROR "c-ares not found")

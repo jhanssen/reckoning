@@ -25,6 +25,7 @@ if (TURBOJPEG_INCLUDE_DIR AND TURBOJPEG_LIBRARY)
             IMPORTED_LINK_INTERFACE_LANGUAGES "C"
             IMPORTED_LOCATION ${TURBOJPEG_LIBRARY})
     endif()
+    message("-- Found TurboJPEG: ${TURBOJPEG_LIBRARY}")
 else()
     if (TURBOJPEG_FIND_REQUIRED)
         message(FATAL_ERROR "TurboJPEG not found")
