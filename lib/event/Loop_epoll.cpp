@@ -48,13 +48,26 @@ void Loop::init()
     }
 }
 
+void Loop::deinit()
+{
+    net::Resolver::resolver().shutdown();
+}
+
 int Loop::execute(std::chrono::milliseconds timeout)
 {
     assert(tLoop.lock() != std::shared_ptr<Loop>());
 
+    int executeTimeout;
+    bool hasTimeout;
     if (timeout != std::chrono::milliseconds{-1}) {
-        addTimer(timeout, [this]() { exit(); });
+        //addTimer(timeout, [this]() { exit(); });
+        executeTimeout = timeout.count();
+        hasTimeout = true;
+    } else {
+        executeTimeout = std::numeric_limits<int>::max();
+        hasTimeout = false;
     }
+    int64_t startTime = timeNow();
 
     auto resort = [](std::vector<std::shared_ptr<Timer> >& timers) {
         auto compare = [](const std::shared_ptr<Timer>& a, const std::shared_ptr<Timer>& b) -> bool {
@@ -101,8 +114,6 @@ int Loop::execute(std::chrono::milliseconds timeout)
                 // are we stopped?
                 if (mStopped) {
                     // shutdown threads etc
-                    net::Resolver::resolver().shutdown();
-
                     return mStatus;
                 }
 
@@ -121,8 +132,6 @@ int Loop::execute(std::chrono::milliseconds timeout)
             // did one of the events stop us?
             if (mStopped) {
                 // shutdown threads etc
-                net::Resolver::resolver().shutdown();
-
                 return mStatus;
             }
 
@@ -173,7 +182,7 @@ int Loop::execute(std::chrono::milliseconds timeout)
                     epollTimeout = 0;
                 }
             } else {
-                epollTimeout = -1;
+                epollTimeout = hasTimeout ? executeTimeout : -1;
             }
 
             // also, while we have the mutex, process removed fds
@@ -206,7 +215,7 @@ int Loop::execute(std::chrono::milliseconds timeout)
             fds.clear();
         }
 
-        eintrwrap(e, epoll_wait(mFd, epevents, MaxEvents, epollTimeout));
+        eintrwrap(e, epoll_wait(mFd, epevents, MaxEvents, std::min(executeTimeout, epollTimeout)));
         if (e < 0) {
             // bad
             Log(Log::Error) << "unable to wait for events" << errno;
@@ -276,6 +285,16 @@ int Loop::execute(std::chrono::milliseconds timeout)
             t->execute();
         }
         timers.clear();
+
+        if (hasTimeout) {
+            const int64_t now = timeNow();
+            executeTimeout -= (now - startTime);
+            startTime = now;
+
+            if (executeTimeout <= 0) {
+                return 0;
+            }
+        }
     }
     return 0;
 }

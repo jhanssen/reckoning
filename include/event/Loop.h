@@ -143,9 +143,12 @@ protected:
     Loop();
 
 private:
+    // nice, three different destroy functions
     void destroy();
-    void wakeup();
+    void deinit();
     void cleanup();
+
+    void wakeup();
 
     void commonInit();
 
@@ -484,6 +487,11 @@ inline void Loop::FD::remove()
 inline std::shared_ptr<Loop> Loop::loop()
 {
     return tLoop.lock();
+}
+
+static inline int64_t timeNow()
+{
+    return std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()).time_since_epoch().count();
 }
 
 }} // namespace reckoning::event

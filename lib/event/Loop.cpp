@@ -62,6 +62,7 @@ void Loop::commonInit()
 
 void Loop::destroy()
 {
+    deinit();
     if (sMainLoopPipe == mWakeup[1])
         sMainLoopPipe = -1;
     cleanup();
