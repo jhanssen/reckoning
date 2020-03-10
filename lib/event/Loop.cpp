@@ -11,20 +11,6 @@ using namespace reckoning::log;
 
 thread_local std::weak_ptr<Loop> Loop::tLoop;
 
-static std::atomic<int> sMainLoopPipe;
-static std::once_flag sSetupSignalHandler;
-
-static void sigintHandler(int)
-{
-    const int fd = sMainLoopPipe;
-    if (fd == -1)
-        return;
-    // ### we could potentially write to a closed or even reopened fd here
-    int e;
-    const int c = 'q';
-    eintrwrap(e, write(fd, &c, 1));
-}
-
 Loop::Loop()
     : mStatus(0), mStopped(false)
 {
@@ -53,18 +39,11 @@ void Loop::commonInit()
         return;
     }
 #endif
-    const int fd = mWakeup[1];
-    std::call_once(sSetupSignalHandler, [fd]() {
-            sMainLoopPipe = fd;
-            signal(SIGINT, sigintHandler);
-        });
 }
 
 void Loop::destroy()
 {
     deinit();
-    if (sMainLoopPipe == mWakeup[1])
-        sMainLoopPipe = -1;
     cleanup();
 }
 
