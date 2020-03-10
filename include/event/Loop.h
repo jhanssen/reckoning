@@ -137,6 +137,8 @@ public:
     int execute(std::chrono::milliseconds timeout = std::chrono::milliseconds{-1});
     void exit(int status = 0);
 
+    bool stopped() const { return mStopped; }
+
     static std::shared_ptr<Loop> loop();
 
 protected:
@@ -148,7 +150,8 @@ private:
     void deinit();
     void cleanup();
 
-    void wakeup();
+    enum WakeupReason { Reason_Wakeup, Reason_Stop };
+    void wakeup(WakeupReason reason = Reason_Wakeup);
 
     void commonInit();
 

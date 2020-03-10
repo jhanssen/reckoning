@@ -68,12 +68,12 @@ void Loop::destroy()
     cleanup();
 }
 
-void Loop::wakeup()
+void Loop::wakeup(WakeupReason reason)
 {
     if (mThread == std::this_thread::get_id())
         return;
     int e;
-    const int c = 'w';
+    const int c = (reason == Reason_Wakeup) ? 'w' : 'q';
     eintrwrap(e, write(mWakeup[1], &c, 1));
 }
 
@@ -98,6 +98,5 @@ void Loop::exit(int status)
 {
     std::lock_guard<std::mutex> locker(mMutex);
     mStatus = status;
-    mStopped = true;
-    wakeup();
+    wakeup(Reason_Stop);
 }
