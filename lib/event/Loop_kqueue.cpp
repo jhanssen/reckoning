@@ -103,7 +103,7 @@ int Loop::execute(std::chrono::milliseconds timeout)
         for (;;) {
             {
                 // are we stopped?
-                if (mStopped) {
+                if (mStopped.load(std::memory_order_acquire)) {
                     return mStatus;
                 }
 
@@ -120,7 +120,7 @@ int Loop::execute(std::chrono::milliseconds timeout)
         // process new fds
         {
             // did one of the events stop us?
-            if (mStopped) {
+            if (mStopped.load(std::memory_order_acquire)) {
                 return mStatus;
             }
 
@@ -275,11 +275,7 @@ int Loop::execute(std::chrono::milliseconds timeout)
                         // read and discard
                         char c;
                         do {
-                            e = read(fd, &c, 1);
-                            if (e == 1 && c == 'q') {
-                                // we want to quit
-                                mStopped = true;
-                            }
+                            eintrwrap(e, read(fd, &c, 1));
                         } while (e == 1);
                     } else {
                         processFd(fd, FdRead);

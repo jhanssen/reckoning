@@ -6,6 +6,7 @@
 #include <util/Invocable.h>
 #include <cassert>
 #include <type_traits>
+#include <atomic>
 #include <thread>
 #include <memory>
 #include <vector>
@@ -137,7 +138,7 @@ public:
     int execute(std::chrono::milliseconds timeout = std::chrono::milliseconds{-1});
     void exit(int status = 0);
 
-    bool stopped() const { return mStopped; }
+    bool stopped() const { return mStopped.load(std::memory_order_acquire); }
 
     static std::shared_ptr<Loop> loop();
 
@@ -150,8 +151,7 @@ private:
     void deinit();
     void cleanup();
 
-    enum WakeupReason { Reason_Wakeup, Reason_Stop };
-    void wakeup(WakeupReason reason = Reason_Wakeup);
+    void wakeup(bool forceWrite = false);
 
     void commonInit();
 
@@ -167,8 +167,8 @@ private:
     std::vector<std::pair<int, std::function<void(int, uint8_t)> > > mFds, mPendingFds;
     std::vector<std::pair<int, uint8_t> > mUpdateFds;
     std::vector<int> mRemovedFds;
+    std::atomic<bool> mStopped;
     int mStatus;
-    bool mStopped;
 
     thread_local static std::weak_ptr<Loop> tLoop;
 

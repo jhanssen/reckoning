@@ -11,7 +11,7 @@ using namespace reckoning::log;
 thread_local std::weak_ptr<Loop> Loop::tLoop;
 
 Loop::Loop()
-    : mStatus(0), mStopped(false)
+    : mStopped(false), mStatus(0)
 {
     mThread = std::this_thread::get_id();
     //send([](int, const char*) -> void { }, 10, "123");
@@ -46,10 +46,12 @@ void Loop::destroy()
     cleanup();
 }
 
-void Loop::wakeup(WakeupReason reason)
+void Loop::wakeup(bool forceWrite)
 {
+    if (!forceWrite && mThread == std::this_thread::get_id())
+        return;
     int e;
-    const int c = (reason == Reason_Wakeup) ? 'w' : 'q';
+    const int c = 'w';
     eintrwrap(e, write(mWakeup[1], &c, 1));
 }
 
@@ -73,6 +75,7 @@ void Loop::cleanup()
 void Loop::exit(int status)
 {
     std::lock_guard<std::mutex> locker(mMutex);
+    mStopped.store(true, std::memory_order_release);
     mStatus = status;
-    wakeup(Reason_Stop);
+    wakeup(true);
 }
