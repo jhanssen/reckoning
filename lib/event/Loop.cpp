@@ -49,8 +49,6 @@ void Loop::destroy()
 
 void Loop::wakeup(WakeupReason reason)
 {
-    if (mThread == std::this_thread::get_id())
-        return;
     int e;
     const int c = (reason == Reason_Wakeup) ? 'w' : 'q';
     eintrwrap(e, write(mWakeup[1], &c, 1));

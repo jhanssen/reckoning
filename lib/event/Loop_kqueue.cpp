@@ -102,12 +102,12 @@ int Loop::execute(std::chrono::milliseconds timeout)
         // execute all events
         for (;;) {
             {
-                std::lock_guard<std::mutex> locker(mMutex);
                 // are we stopped?
                 if (mStopped) {
                     return mStatus;
                 }
 
+                std::lock_guard<std::mutex> locker(mMutex);
                 events = std::move(mEvents);
                 if (events.empty())
                     break;
@@ -119,12 +119,12 @@ int Loop::execute(std::chrono::milliseconds timeout)
 
         // process new fds
         {
-            std::lock_guard<std::mutex> locker(mMutex);
             // did one of the events stop us?
             if (mStopped) {
                 return mStatus;
             }
 
+            std::lock_guard<std::mutex> locker(mMutex);
             if (!mPendingFds.empty()) {
                 fds.clear();
                 fds.reserve(mPendingFds.size());
@@ -278,7 +278,6 @@ int Loop::execute(std::chrono::milliseconds timeout)
                             e = read(fd, &c, 1);
                             if (e == 1 && c == 'q') {
                                 // we want to quit
-                                std::lock_guard<std::mutex> locker(mMutex);
                                 mStopped = true;
                             }
                         } while (e == 1);
