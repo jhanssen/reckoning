@@ -111,7 +111,7 @@ int Loop::execute(std::chrono::milliseconds timeout)
         for (;;) {
             {
                 // are we stopped?
-                if (mStopped.load(std::memory_order_acquire) {
+                if (mStopped.load(std::memory_order_acquire)) {
                     // shutdown threads etc
                     return mStatus;
                 }
