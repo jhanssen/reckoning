@@ -110,6 +110,8 @@ Resolver::Resolver()
 
 void Resolver::shutdown()
 {
+    if (!mThread.joinable())
+        return;
     {
         std::unique_lock<std::mutex> locker(mMutex);
         mStopped = true;
