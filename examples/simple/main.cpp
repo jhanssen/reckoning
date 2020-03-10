@@ -11,10 +11,23 @@
 #include <args/Args.h>
 #include <args/Parser.h>
 #include <string>
+#include <signal.h>
 
 using namespace reckoning;
 using namespace reckoning::log;
 using namespace std::chrono_literals;
+
+std::shared_ptr<event::Loop> mainLoopPtr;
+
+static void sigintHandler(int)
+{
+    // might not be safe to do this from a signal handler, but eh
+    std::shared_ptr<event::Loop> loop;
+    loop = atomic_load(&mainLoopPtr);
+    if (loop) {
+        loop->exit();
+    }
+}
 
 #define HAVE_CREF
 
@@ -55,6 +68,8 @@ event::Signal<int, Test&&> sig;
 
 int main(int argc, char** argv)
 {
+    signal(SIGINT, sigintHandler);
+
     Log::initialize(Log::Debug);
 
     {
@@ -95,6 +110,7 @@ int main(int argc, char** argv)
 
 
     std::shared_ptr<event::Loop> loop = event::Loop::create();
+    atomic_store(&mainLoopPtr, loop);
 
     /*
     auto conn = sig.connect([](int i, Test&& t) {
