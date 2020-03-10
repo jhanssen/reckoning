@@ -39,13 +39,26 @@ void Loop::init()
     }
 }
 
+void Loop::deinit()
+{
+    net::Resolver::resolver().shutdown();
+}
+
 int Loop::execute(std::chrono::milliseconds timeout)
 {
     assert(tLoop.lock() != std::shared_ptr<Loop>());
 
+    int executeTimeout;
+    bool hasTimeout;
     if (timeout != std::chrono::milliseconds{-1}) {
-        addTimer(timeout, [this]() { exit(); });
+        //addTimer(timeout, [this]() { exit(); });
+        executeTimeout = timeout.count();
+        hasTimeout = true;
+    } else {
+        executeTimeout = std::numeric_limits<int>::max();
+        hasTimeout = false;
     }
+    int64_t startTime = timeNow();
 
     auto resort = [](std::vector<std::shared_ptr<Timer> >& timers) {
         auto compare = [](const std::shared_ptr<Timer>& a, const std::shared_ptr<Timer>& b) -> bool {
@@ -75,7 +88,7 @@ int Loop::execute(std::chrono::milliseconds timeout)
         }
     };
 
-    timespec ts;
+    timespec ts, ets;
     timespec* tsptr = nullptr;
 
     std::vector<std::unique_ptr<Event> > events;
@@ -92,9 +105,6 @@ int Loop::execute(std::chrono::milliseconds timeout)
                 std::lock_guard<std::mutex> locker(mMutex);
                 // are we stopped?
                 if (mStopped) {
-                    // shutdown threads etc
-                    net::Resolver::resolver().shutdown();
-
                     return mStatus;
                 }
 
@@ -112,9 +122,6 @@ int Loop::execute(std::chrono::milliseconds timeout)
             std::lock_guard<std::mutex> locker(mMutex);
             // did one of the events stop us?
             if (mStopped) {
-                // shutdown threads etc
-                net::Resolver::resolver().shutdown();
-
                 return mStatus;
             }
 
@@ -156,16 +163,29 @@ int Loop::execute(std::chrono::milliseconds timeout)
         }
         // when is our first timer?
         {
+            if (hasTimeout) {
+                ets.tv_sec = executeTimeout / 1000;
+                ets.tv_nsec = (executeTimeout % 1000) * 1000000;
+            }
+
             std::lock_guard<std::mutex> locker(mMutex);
             if (!mTimers.empty()) {
                 auto now = std::chrono::steady_clock::now();
+                tsptr = nullptr;
                 if (now <= mTimers.front()->mNext) {
                     auto when = mTimers.front()->mNext - now;
                     ts = std::chrono::duration_cast<timespec>(when);
+                    if (hasTimeout && (ets.tv_sec < ts.tv_sec || (ets.tv_sec == ts.tv_sec && ets.tv_nsec < ts.tv_nsec))) {
+                        tsptr = &ets;
+                    }
                 } else {
                     memset(&ts, 0, sizeof(ts));
                 }
-                tsptr = &ts;
+                if (tsptr == nullptr) {
+                    tsptr = &ts;
+                }
+            } else if (hasTimeout) {
+                tsptr = &ets;
             } else {
                 tsptr = nullptr;
             }
@@ -300,6 +320,17 @@ int Loop::execute(std::chrono::milliseconds timeout)
         for (const auto& t : timers) {
             t->execute();
         }
+
+        if (hasTimeout) {
+            const int64_t now = timeNow();
+            executeTimeout -= (now - startTime);
+            startTime = now;
+
+            if (executeTimeout <= 0) {
+                return 0;
+            }
+        }
+
         timers.clear();
     }
     return 0;
