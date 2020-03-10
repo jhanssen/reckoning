@@ -3,7 +3,6 @@
 #include <log/Log.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <signal.h>
 
 using namespace reckoning;
 using namespace reckoning::event;
