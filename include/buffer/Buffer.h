@@ -23,6 +23,7 @@ public:
     const uint8_t* data() const;
 
     void setSize(size_t sz);
+    void addSize(ssize_t delta);
     size_t size() const;
     size_t max() const;
 
@@ -112,6 +113,12 @@ inline void Buffer::setSize(size_t sz)
 {
     assert(sz <= mMax);
     mSize = sz;
+}
+
+inline void Buffer::addSize(ssize_t delta)
+{
+    assert(mSize + delta >= 0 && mSize + delta <= mMax);
+    mSize += delta;
 }
 
 inline size_t Buffer::max() const

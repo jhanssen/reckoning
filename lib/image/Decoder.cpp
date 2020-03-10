@@ -8,6 +8,14 @@ using namespace reckoning::image;
 
 enum Format { Format_JPEG, Format_PNG, Format_WEBP, Format_Invalid };
 
+static inline uint32_t calculatePitch(uint32_t w, uint32_t p)
+{
+    if (!p)
+        return w;
+    const auto mod = w % p;
+    return mod ? w + (p - mod) : w;
+};
+
 static inline Format guessFormat(const std::shared_ptr<buffer::Buffer>& data)
 {
     if (data->size() >= 4 && memcmp(data->data(), "\211PNG", 4) == 0)
@@ -19,7 +27,7 @@ static inline Format guessFormat(const std::shared_ptr<buffer::Buffer>& data)
     return Format_Invalid;
 }
 
-static inline Decoder::Image decodePNG(const std::shared_ptr<buffer::Buffer>& data)
+static inline Decoder::Image decodePNG(const std::shared_ptr<buffer::Buffer>& data, uint32_t pitchMultiple)
 {
     auto png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
     if (!png_ptr) {
@@ -94,6 +102,8 @@ static inline Decoder::Image decodePNG(const std::shared_ptr<buffer::Buffer>& da
     }
 
     image.depth = 32;
+    assert(!(image.depth % 8));
+    const uint32_t bpp = image.depth / 8;
 
     png_read_update_info(png_ptr, info_ptr);
     if (setjmp(png_jmpbuf(png_ptr))) {
@@ -102,26 +112,30 @@ static inline Decoder::Image decodePNG(const std::shared_ptr<buffer::Buffer>& da
     }
 
     const auto rowBytes = png_get_rowbytes(png_ptr, info_ptr);
+    const auto pitch = calculatePitch(image.width, pitchMultiple) * bpp;
+    assert(pitch >= rowBytes);
     png_bytep* row_pointers = static_cast<png_bytep*>(png_malloc(png_ptr, image.height * sizeof(png_bytep)));
     for (uint32_t y = 0; y < image.height; ++y)
         row_pointers[y] = static_cast<png_bytep>(png_malloc(png_ptr, rowBytes));
 
     png_read_image(png_ptr, row_pointers);
 
-    image.data = buffer::Buffer::create(image.height * rowBytes);
+    image.data = buffer::Buffer::create(pitch * image.height);
     image.data->setSize(0); // append below will increase our size
-    for (uint32_t y = 0; y < image.height; ++y)
+    for (uint32_t y = 0; y < image.height; ++y) {
         image.data->append(row_pointers[y], rowBytes);
+        image.data->addSize(pitch - rowBytes);
+    }
 
     png_read_end(png_ptr, info_ptr);
     png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
 
-    image.bpl = rowBytes;
+    image.bpl = pitch;
 
     return image;
 }
 
-static inline Decoder::Image decodeWEBP(const std::shared_ptr<buffer::Buffer>& data)
+static inline Decoder::Image decodeWEBP(const std::shared_ptr<buffer::Buffer>& data, uint32_t pitchMultiple)
 {
     WebPBitstreamFeatures features;
     if (WebPGetFeatures(data->data(), data->size(), &features) != VP8_STATUS_OK) {
@@ -129,13 +143,18 @@ static inline Decoder::Image decodeWEBP(const std::shared_ptr<buffer::Buffer>& d
     }
     Decoder::Image image;
     image.width = features.width;
-    image.bpl = features.width * 4;
     image.height = features.height;
     image.alpha = features.has_alpha;
     image.depth = 32;
 
-    image.data = buffer::Buffer::create(image.width * image.height * 4);
-    auto out = WebPDecodeRGBAInto(data->data(), data->size(), image.data->data(), image.data->size(), image.width * 4);
+    assert(!(image.depth % 8));
+    const uint32_t bpp = image.depth / 8;
+
+    const auto pitch = calculatePitch(image.width, pitchMultiple) * bpp;
+    image.data = buffer::Buffer::create(pitch * image.height);
+    image.bpl = pitch;
+
+    auto out = WebPDecodeRGBAInto(data->data(), data->size(), image.data->data(), image.data->size(), pitch);
     if (out == nullptr) {
         return {};
     }
@@ -143,7 +162,7 @@ static inline Decoder::Image decodeWEBP(const std::shared_ptr<buffer::Buffer>& d
     return image;
 }
 
-static inline Decoder::Image decodeJPEG(const std::shared_ptr<buffer::Buffer>& data)
+static inline Decoder::Image decodeJPEG(const std::shared_ptr<buffer::Buffer>& data, uint32_t pitchMultiple)
 {
     auto handle = tjInitDecompress();
     int width, height;
@@ -155,14 +174,18 @@ static inline Decoder::Image decodeJPEG(const std::shared_ptr<buffer::Buffer>& d
 
     Decoder::Image image;
     image.width = width;
-    image.bpl = width * 4;
     image.height = height;
     image.alpha = false;
     image.depth = 32;
 
-    image.data = buffer::Buffer::create(image.width * image.height * 4);
+    assert(!(image.depth % 8));
+    const uint32_t bpp = image.depth / 8;
 
-    if (tjDecompress2(handle, bytes, data->size(), image.data->data(), width, 0, height, TJPF_RGBA, TJFLAG_FASTDCT) != 0) {
+    const auto pitch = calculatePitch(image.width, pitchMultiple) * bpp;
+    image.data = buffer::Buffer::create(pitch * image.height);
+    image.bpl = pitch;
+
+    if (tjDecompress2(handle, bytes, data->size(), image.data->data(), width, pitch, height, TJPF_RGBA, TJFLAG_FASTDCT) != 0) {
         tjDestroy(handle);
         return {};
     }
@@ -190,13 +213,13 @@ Decoder::Decoder()
                 const auto& buf = job->data;
                 switch (guessFormat(buf)) {
                 case Format_JPEG:
-                    job->then.resolve(decodeJPEG(buf));
+                    job->then.resolve(decodeJPEG(buf, job->pitchMultiple));
                     break;
                 case Format_PNG:
-                    job->then.resolve(decodePNG(buf));
+                    job->then.resolve(decodePNG(buf, job->pitchMultiple));
                     break;
                 case Format_WEBP:
-                    job->then.resolve(decodeWEBP(buf));
+                    job->then.resolve(decodeWEBP(buf, job->pitchMultiple));
                     break;
                 default:
                     job->then.resolve({});

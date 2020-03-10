@@ -29,7 +29,7 @@ public:
         std::shared_ptr<buffer::Buffer> data;
     };
 
-    then::Then<Image>& decode(std::shared_ptr<buffer::Buffer>&& buffer);
+    then::Then<Image>& decode(std::shared_ptr<buffer::Buffer>&& buffer, uint32_t pitchMultiple = 0);
 
 protected:
     Decoder();
@@ -38,6 +38,7 @@ private:
     struct Job : public util::Creatable<Job>
     {
         std::shared_ptr<buffer::Buffer> data;
+        uint32_t pitchMultiple;
         then::Then<Image> then;
     };
 
@@ -51,10 +52,11 @@ private:
     Decoder(const Decoder&) = delete;
 };
 
-inline then::Then<Decoder::Image>& Decoder::decode(std::shared_ptr<buffer::Buffer>&& buffer)
+inline then::Then<Decoder::Image>& Decoder::decode(std::shared_ptr<buffer::Buffer>&& buffer, uint32_t pitchMultiple)
 {
     auto job = pool::Pool<Job, 10>::pool().get();
     job->data = std::move(buffer);
+    job->pitchMultiple = pitchMultiple;
     {
         std::unique_lock<std::mutex> locker(mMutex);
         mJobs.push_back(job);
