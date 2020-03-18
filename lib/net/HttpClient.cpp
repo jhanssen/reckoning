@@ -180,7 +180,6 @@ void HttpClient::socketEventCallback(int fd, uint8_t flags)
         action |= CURL_CSELECT_OUT;
     int running = 0;
     curl_multi_socket_action(tCurlInfo->multi, fd, action, &running);
-    HttpClient::checkMultiInfo();
     if (running <= 0) {
         // we're done!
         if (tCurlInfo->timer) {
@@ -188,6 +187,7 @@ void HttpClient::socketEventCallback(int fd, uint8_t flags)
             tCurlInfo->timer.reset();
         }
     }
+    HttpClient::checkMultiInfo();
 }
 
 int HttpClient::multiSocketCallback(CURL* easy, curl_socket_t socket, int what, void* globalSocketData, void* perSocketData)
