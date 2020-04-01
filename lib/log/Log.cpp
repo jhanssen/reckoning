@@ -18,7 +18,7 @@ void Log::initialize(Level level, Output output, const std::string& filename)
     sLevel = level;
     sOutput = output;
     if (!filename.empty()) {
-        sFd = open(filename.c_str(), O_WRONLY | O_TRUNC | O_CREAT);
+        sFd = open(filename.c_str(), O_WRONLY | O_TRUNC | O_CREAT, 0600);
         if (sFd != -1) {
             std::atexit([]() {
                     ::close(sFd);
