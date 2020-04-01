@@ -135,7 +135,7 @@ Path Path::applicationPath()
     std::string buf;
     buf.resize(1024);
     for (;;) {
-        uint8_t bufsize = buf.size();
+        uint32_t bufsize = buf.size();
         const int r = _NSGetExecutablePath(&buf[0], &bufsize);
         if (r == 0) {
             buf.resize(bufsize);
