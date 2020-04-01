@@ -3,6 +3,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#ifdef __APPLE__
+# include <mach-o/dyld.h>
+# include <limits.h>
+#endif
 
 using namespace reckoning;
 using namespace reckoning::fs;
@@ -123,4 +127,44 @@ bool Path::write(const std::shared_ptr<buffer::Buffer>& buffer)
     fclose(f);
 
     return true;
+}
+
+Path Path::applicationPath()
+{
+#ifdef __APPLE__
+    std::string buf;
+    buf.resize(1024);
+    for (;;) {
+        uint8_t bufsize = buf.size();
+        const int r = _NSGetExecutablePath(&buf[0], &bufsize);
+        if (r == 0) {
+            buf.resize(bufsize);
+            return Path(std::move(buf));
+        } else if (r == -1 && bufsize > static_cast<int>(buf.size())) {
+            // try again
+            buf.resize(bufsize);
+        } else {
+            // bail out
+            return Path();
+        }
+    }
+#else
+    // assume linux?
+    std::string buf;
+    buf.resize(1024); // good starting point?
+    for (;;) {
+        const ssize_t r = readlink("/proc/self/exe", &buf[0], buf.size());
+        if (r == static_cast<ssize_t>(buf.size())) {
+            // truncated? try again until we know for sure
+            buf.resize(buf.size() * 2);
+        } else if (r > 0) {
+            buf.resize(r);
+            return Path(std::move(buf));
+        } else {
+            // something bad happened
+            return Path();
+        }
+    }
+#endif
+    return Path();
 }
