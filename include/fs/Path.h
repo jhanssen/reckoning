@@ -12,6 +12,7 @@ class Path
 public:
     Path();
     Path(const std::string& path);
+    Path(std::string&& path);
     Path(const Path& path);
     Path(Path&& path);
 
@@ -46,6 +47,8 @@ public:
     bool write(const std::shared_ptr<buffer::Buffer>& buffer);
     bool remove();
 
+    static Path applicationPath();
+
 private:
     std::string mPath;
 };
@@ -59,15 +62,19 @@ inline Path::Path(const std::string& path)
 {
 }
 
+inline Path::Path(std::string&& path)
+    : mPath(std::move(path))
+{
+}
+
 inline Path::Path(const Path& path)
     : mPath(path.mPath)
 {
 }
 
 inline Path::Path(Path&& path)
-    : mPath(path.mPath)
+    : mPath(std::move(path.mPath))
 {
-    path.mPath.clear();
 }
 
 inline Path& Path::operator=(const Path& path)
