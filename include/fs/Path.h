@@ -45,6 +45,7 @@ public:
 
     std::shared_ptr<buffer::Buffer> read() const;
     bool write(const std::shared_ptr<buffer::Buffer>& buffer);
+    bool write(const void* data, size_t size);
     bool remove();
 
     static Path applicationPath();

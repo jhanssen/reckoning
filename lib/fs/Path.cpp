@@ -108,7 +108,7 @@ std::shared_ptr<buffer::Buffer> Path::read() const
     return buffer;
 }
 
-bool Path::write(const std::shared_ptr<buffer::Buffer>& buffer)
+bool Path::write(const void* data, size_t size)
 {
     FILE* f = fopen(mPath.c_str(), "w");
     if (!f)
@@ -120,13 +120,18 @@ bool Path::write(const std::shared_ptr<buffer::Buffer>& buffer)
         return false;
     }
 
-    if (fwrite(buffer->data(), buffer->size(), 1, f) != 1) {
+    if (fwrite(data, size, 1, f) != 1) {
         fclose(f);
         return false;
     }
     fclose(f);
 
     return true;
+}
+
+bool Path::write(const std::shared_ptr<buffer::Buffer>& buffer)
+{
+    return write(buffer->data(), buffer->size());
 }
 
 Path Path::applicationPath()
